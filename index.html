@@ -275,7 +275,7 @@ canvas { display:block; touch-action:none; }
         <div class="icon">🛒</div>SHOP
       </div>
       <div class="nav-btn gacha-btn" id="btn-gacha">
-        <div class="icon">🎰</div>ガチャ
+        <div class="icon">🎰</div>Gacha
       </div>
     </div>
     <div style="margin-top:16px;z-index:1;display:flex;flex-direction:column;gap:10px;align-items:center">
@@ -305,13 +305,13 @@ canvas { display:block; touch-action:none; }
   <div class="panel-screen" id="gacha-screen" style="display:none">
     <div class="panel-header">
       <div class="back-btn" id="gacha-back">←</div>
-      <div class="panel-title" style="color:#ff66ff">🎰 ガチャ</div>
+      <div class="panel-title" style="color:#ff66ff">🎰 Gacha</div>
       <div class="panel-coin">🪙 <span id="gacha-coin">0</span></div>
     </div>
     <div class="panel-body">
       <div class="gacha-area">
         <div class="gacha-machine" id="gacha-machine">🎲</div>
-        <div class="gacha-cost">1回 = 50コイン</div>
+        <div class="gacha-cost">1回 = 200コイン</div>
         <button class="gacha-btn" id="gacha-btn">ガチャを回す</button>
         <div class="gacha-result" id="gacha-result"></div>
         <div class="gacha-history" id="gacha-history" style="display:none">
@@ -368,7 +368,23 @@ canvas { display:block; touch-action:none; }
   </div>
 </div>
 
+
+<div id="debug-log" style="
+  position:fixed; left:8px; top:48px; width:min(384px, calc(100vw - 16px)); max-height:240px;
+  overflow:auto; z-index:500; background:rgba(0,0,0,0.85); color:#8cff8c;
+  border:1px solid #335533; border-radius:8px; padding:8px 10px; font:12px/1.4 monospace;
+  white-space:pre-wrap; display:none; pointer-events:none;
+"></div>
+
+<div id="debug-controls" style="
+  position:fixed; right:8px; top:8px; z-index:501; display:flex; gap:6px;
+">
+  <button id="debug-toggle-btn" style="padding:6px 10px;border-radius:8px;border:1px solid #4a4;background:#111;color:#8cff8c;font:12px monospace;cursor:pointer;">DEBUG</button>
+  <button id="debug-clear-btn" style="padding:6px 10px;border-radius:8px;border:1px solid #666;background:#111;color:#ddd;font:12px monospace;cursor:pointer;display:none;">CLEAR</button>
+</div>
+
 <div id="toast"></div>
+
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
 <script>
@@ -407,10 +423,10 @@ const State = {
 
 // ショップ商品定義
 const SHOP_ITEMS = [
-  { id:'shield',  name:'シールド強化',  desc:'バリアの持続時間+50%',  icon:'🛡️', price:120 },
-  { id:'power',   name:'攻撃力UP',      desc:'弾のダメージ2倍',        icon:'⚡', price:150 },
+  { id:'shield',  name:'シールド強化',  desc:'バリアの持続時間+50%',  icon:'🛡️', price:1000 },
+  { id:'power',   name:'攻撃力UP',      desc:'弾のダメージ2倍',        icon:'⚡', price:2000 },
   { id:'speed',   name:'機体速度UP',    desc:'移動速度+30%',           icon:'🚀', price:100 },
-  { id:'lives',   name:'残機+1',        desc:'開始時ライフが9に',       icon:'❤️', price:80  },
+  { id:'lives',   name:'残機+1',        desc:'開始時ライフが9に',       icon:'❤️', price:1000  },
 ];
 
 // ===== スキン定義（12種） =====
@@ -515,13 +531,10 @@ function hasSkin(id) { return id==='skin_default' || State.hasItem(id); }
 
 // ガチャ景品定義
 const GACHA_PRIZES = [
-  { id:'gacha_coin_s',  name:'コイン小',    icon:'🪙', desc:'+30コイン',    rarity:'common', action:()=>{ State.addCoins(30); } },
-  { id:'gacha_coin_m',  name:'コイン中',    icon:'💰', desc:'+80コイン',    rarity:'rare',   action:()=>{ State.addCoins(80); } },
-  { id:'gacha_coin_l',  name:'コイン大',    icon:'💎', desc:'+200コイン',   rarity:'epic',   action:()=>{ State.addCoins(200); } },
+  { id:'gacha_coin_m',  name:'コイン中',    icon:'💰', desc:'+10コイン',    rarity:'rare',   action:()=>{ State.addCoins(80); } },
   { id:'gacha_spread',  name:'散弾カプセル',icon:'🔶', desc:'次回散弾で開始', rarity:'rare',  action:()=>{ State.addItem('gacha_spread'); } },
   { id:'gacha_beam',    name:'ビームカプセル',icon:'🔷',desc:'次回ビームで開始',rarity:'rare', action:()=>{ State.addItem('gacha_beam'); } },
   { id:'gacha_barrier', name:'バリアカプセル',icon:'🟢',desc:'次回バリアで開始',rarity:'epic', action:()=>{ State.addItem('gacha_barrier'); } },
-  { id:'gacha_star',    name:'★レアスター', icon:'⭐', desc:'+500コイン',   rarity:'legendary', action:()=>{ State.addCoins(500); } },
   // スキン枠（common〜legendaryまでランダム）
   { id:'gacha_skin',    name:'スキンカプセル',icon:'🎨', desc:'ランダムスキン獲得', rarity:'rare', action:()=>{
     // 未入手のスキンからランダム抽選
@@ -554,6 +567,64 @@ function toast(msg, ms=2000) {
   el.textContent = msg;
   el.classList.add('show');
   setTimeout(()=>el.classList.remove('show'), ms);
+
+}
+
+const DEBUG_MODE = true;
+window.debugLog = function (...args) {
+  if (!DEBUG_MODE) return;
+  const msg = args.map(v => {
+    if (typeof v === 'string') return v;
+    try { return JSON.stringify(v); } catch (_) { return String(v); }
+  }).join(' ');
+  console.log('[DEBUG]', ...args);
+
+  const el = document.getElementById('debug-log');
+  if (!el) return;
+  const stamp = new Date().toLocaleTimeString();
+  const line = document.createElement('div');
+  line.textContent = `[${stamp}] ${msg}`;
+  el.appendChild(line);
+  while (el.childNodes.length > 120) el.removeChild(el.firstChild);
+  el.scrollTop = el.scrollHeight;
+};
+
+function setupDebugUI() {
+  const logEl = document.getElementById('debug-log');
+  const toggleBtn = document.getElementById('debug-toggle-btn');
+  const clearBtn = document.getElementById('debug-clear-btn');
+  if (!logEl || !toggleBtn || !clearBtn) return;
+
+  toggleBtn.addEventListener('click', () => {
+    const hidden = logEl.style.display === 'none' || !logEl.style.display;
+    logEl.style.display = hidden ? 'block' : 'none';
+    clearBtn.style.display = hidden ? 'inline-block' : 'none';
+    if (hidden && !logEl.childNodes.length) {
+      window.debugLog('debug ui opened');
+    }
+  });
+
+  clearBtn.addEventListener('click', () => {
+    logEl.innerHTML = '';
+    window.debugLog('debug log cleared');
+  });
+
+  console.log('[DEBUG] debug ui ready');
+}
+
+
+window.addEventListener('error', (e) => {
+  window.debugLog && window.debugLog('window.onerror', e.message, 'at', `${e.filename || ''}:${e.lineno || 0}`);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  const reason = e.reason && e.reason.message ? e.reason.message : String(e.reason);
+  window.debugLog && window.debugLog('unhandledrejection', reason);
+});
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupDebugUI, { once: true });
+} else {
+  setupDebugUI();
 }
 
 // ========================================================
@@ -664,45 +735,17 @@ function renderGachaHistory() {
   });
 }
 
-// ランキング描画（上位5位・名前表示）
-function renderRanking() {
-  const body = document.getElementById('ranking-body');
-  const entries = State.ranking.slice(0, 5);
-  if (!entries.length) {
-    body.innerHTML = '<div class="rank-empty">まだ記録がありません<br>ゲームをクリアしよう！</div>';
+// ランキング描画（Firebase共有ランキング）
+async function renderRanking() {
+  window.debugLog && window.debugLog('[RANK] renderRanking wrapper start');
+  if (!window.firebaseRanking || !window.firebaseRanking.renderRanking) {
+    const body = document.getElementById('ranking-body');
+    body.innerHTML = '<div class="rank-empty">Firebase初期化中です…</div>';
+    window.debugLog && window.debugLog('[RANK] firebaseRanking not ready');
     return;
   }
-  body.innerHTML = '';
-  entries.forEach((e, i) => {
-    const numClass = i===0?'gold':i===1?'silver':i===2?'bronze':'normal';
-    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;
-    const bonusTags = [
-      e.lifeBonus  ? `<span class="bonus-tag" style="background:rgba(255,200,0,0.15);color:#ffcc44;border:1px solid #ffcc4444">❤️ライフ +${e.lifeBonus.toLocaleString()}</span>` : '',
-      e.timeBonus  ? `<span class="bonus-tag" style="background:rgba(0,200,255,0.15);color:#00ccff;border:1px solid #00ccff44">⏱${e.bossTime||0}s +${e.timeBonus.toLocaleString()}</span>` : '',
-      e.killBonus  ? `<span class="bonus-tag" style="background:rgba(255,100,0,0.15);color:#ff8844;border:1px solid #ff884444">💥${e.killCount||0}機 +${e.killBonus.toLocaleString()}</span>` : '',
-    ].filter(Boolean).join('');
-    let dateStr = '';
-    try {
-      const d = new Date(e.date);
-      dateStr = `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
-    } catch(_) {}
-    const name = e.name || 'PLAYER';
-    const row = document.createElement('div');
-    row.className = 'rank-row';
-    row.innerHTML = `
-      <div class="rank-num ${numClass}">${medal}</div>
-      <div class="rank-info">
-        <div class="rank-score" style="display:flex;align-items:baseline;gap:10px">
-          <span style="font-size:15px;color:#ff88ff;font-weight:bold">${name}</span>
-          <span>${e.score.toLocaleString()}</span>
-        </div>
-        <div class="rank-detail">基本 ${e.baseScore.toLocaleString()} &nbsp;|&nbsp; ${dateStr}</div>
-        ${bonusTags ? `<div class="rank-bonus">${bonusTags}</div>` : ''}
-      </div>`;
-    body.appendChild(row);
-  });
+  return await window.firebaseRanking.renderRanking();
 }
-
 
 
 // スキンカタログ描画
@@ -875,7 +918,9 @@ function makeTextures(scene) {
     g.generateTexture('boss_bullet',16,16); g.destroy();
   }
   // アイテム
-  if (!scene.textures.exists('item_spread')) {
+  // アイテムテクスチャは毎回再生成（シーン再起動時にグラフィクスが空になるのを防ぐ）
+  ['item_spread','item_beam','item_barrier'].forEach(k=>{ if(scene.textures.exists(k)) scene.textures.remove(k); });
+  {
     const g = scene.make.graphics({ add:false });
     g.fillStyle(0xffaa00); g.fillCircle(14,14,14);
     g.fillStyle(0x000000,0.3); g.fillCircle(14,14,9);
@@ -886,14 +931,14 @@ function makeTextures(scene) {
     }
     g.generateTexture('item_spread',28,28); g.destroy();
   }
-  if (!scene.textures.exists('item_beam')) {
+  {
     const g = scene.make.graphics({ add:false });
     g.fillStyle(0x00ccff); g.fillCircle(14,14,14);
     g.fillStyle(0x000000,0.3); g.fillCircle(14,14,9);
     g.fillStyle(0xffffff); g.fillRect(12,5,4,18);
     g.generateTexture('item_beam',28,28); g.destroy();
   }
-  if (!scene.textures.exists('item_barrier')) {
+  {
     const g = scene.make.graphics({ add:false });
     g.fillStyle(0x44ff88); g.fillCircle(14,14,14);
     g.fillStyle(0x000000,0.3); g.fillCircle(14,14,9);
@@ -1021,7 +1066,6 @@ class GameScene extends Phaser.Scene {
     this.shotsFired   = 0;     // 発射弾数
     this.killCount    = 0;     // 敵破壊数
     this.killScore    = 0;     // 敵破壊スコア合計
-    this.startLives   = 0;     // 開始ライフ（後で上書き）
 
     // ボス状態
     this.boss      = null;
@@ -1430,6 +1474,11 @@ class GameScene extends Phaser.Scene {
     if (this.invincible || this.damageLock) {
       return;
     }
+    // バリア中は弾を消してダメージなし
+    if (this.hasBarrier()) {
+      this.flashBarrier();
+      return;
+    }
 
     this.lastDamageFrame = frame;
     this.damageLock = true;
@@ -1441,6 +1490,12 @@ class GameScene extends Phaser.Scene {
     if (this.lastDamageFrame === frame) return;
     if (this.dead || this.invincible || this.damageLock) return;
     if (!enemy.active) return;
+    // バリア中は敵を消してダメージなし
+    if (this.hasBarrier()) {
+      this.flashBarrier();
+      enemy.destroy();
+      return;
+    }
     this.lastDamageFrame = frame;
     this.damageLock = true;
     enemy.destroy();
@@ -1508,6 +1563,9 @@ class GameScene extends Phaser.Scene {
     if (!this.boss) return;
     const bx = this.boss.x, by = this.boss.y;
 
+    // ボス撃破演出中はプレイヤーを無敵に
+    this.invincible = true;
+
     this.boss.setVelocity(0, 0);
     this.boss.clearTint();
     this.bossBarBg.clear();
@@ -1518,6 +1576,8 @@ class GameScene extends Phaser.Scene {
 
     // スローモーション爆発演出（約3秒）
     this.bossSlowExplosion(bx, by, () => {
+      // 演出中にゲームオーバーになっていたら何もしない
+      if (this.dead) return;
       // 爆発完了後にボスを消す
       if (this.boss) { this.boss.destroy(); this.boss = null; }
 
@@ -1547,20 +1607,25 @@ class GameScene extends Phaser.Scene {
     BGM.stop();
     const baseScore = this.score;
 
-    // ① ライフボーナス: 残りライフ × 500
-    const lifeBonus = this.lives * 500;
+    // ① ライフボーナス: 残りライフ × 1500
+    const lifeBonus = this.lives * 1500;
 
     // ② ボス破壊タイムボーナス: 最大5000点、30秒以内が満点、120秒以上は0
     const bossElapsed = (this.time.now - (this.bossStartTime||this.time.now)) / 1000;
-    const timeBonus = Math.max(0, Math.floor(5000 * Math.max(0, (120 - bossElapsed) / 90)));
-
-    // ③ 破壊ボーナス: 敵破壊スコア合計の30%
-    const killBonus = Math.floor(this.killScore * 0.3);
+    const timeBonus =
+       bossElapsed <= 10
+        ? 5000
+    	: bossElapsed >= 40
+      	? 0
+      	: Math.floor(5000 * (20 - bossElapsed) / 15);
+    
+    // ③ 破壊ボーナス: 敵破壊スコア合計
+    const killBonus = Math.floor(this.killScore);
 
     const totalScore = baseScore + lifeBonus + timeBonus + killBonus;
 
     // コイン計算
-    const earned = Math.floor(totalScore / 20);
+    const earned = Math.floor(totalScore / 40);
     State.addCoins(earned);
 
     // クリア画面に表示
@@ -1581,16 +1646,37 @@ class GameScene extends Phaser.Scene {
     const entry = { score:totalScore, baseScore, lifeBonus, timeBonus, killBonus,
                     bossTime:Math.floor(bossElapsed), killCount:this.killCount, date:dateStr, name:'---' };
 
-    if (State.isRankIn(totalScore)) {
-      showNameInputModal(totalScore, (name) => {
+window.debugLog && window.debugLog('[RANK] stageClear totalScore=', totalScore, 'entry=', entry);
+if (window.firebaseRanking && window.firebaseRanking.isRankIn) {
+  window.debugLog && window.debugLog('[RANK] firebaseRanking keys=', Object.keys(window.firebaseRanking || {}));
+  window.firebaseRanking.isRankIn(totalScore).then((rankIn) => {
+    window.debugLog && window.debugLog('[RANK] isRankIn resolved=', rankIn);
+    if (rankIn) {
+      showNameInputModal(totalScore, async (name) => {
         entry.name = name || 'PLAYER';
-        State.addRankEntry(entry);
+
+        try {
+          await window.firebaseRanking.saveRankingToFirebase(entry);
+          State.addRankEntry(entry);
+          console.log('[RANK] Firebase保存成功', entry);
+        } catch (error) {
+          console.error('Firebase保存失敗', error);
+          toast('ランキング保存に失敗しました');
+        }
+
         showScreen('clear-screen');
       });
     } else {
-      State.addRankEntry(entry);
       showScreen('clear-screen');
     }
+  }).catch((error) => {
+    console.error('ランキング判定失敗', error);
+    showScreen('clear-screen');
+  });
+} else {
+  console.error('firebaseRanking が未初期化、または isRankIn がありません');
+  showScreen('clear-screen');
+}
   }
 
   // ===== バリア =====
@@ -2034,8 +2120,9 @@ document.getElementById('btn-shop').addEventListener('click', ()=>{
 document.getElementById('btn-gacha').addEventListener('click', ()=>{
   renderGachaHistory(); showScreen('gacha-screen');
 });
-document.getElementById('btn-ranking').addEventListener('click', ()=>{
-  renderRanking(); showScreen('ranking-screen');
+document.getElementById('btn-ranking').addEventListener('click', async () => {
+  showScreen('ranking-screen');
+  await renderRanking();
 });
 
 // バック
@@ -2056,8 +2143,8 @@ document.getElementById('clear-home-btn').addEventListener('click', ()=>{
 
 // ガチャ
 document.getElementById('gacha-btn').addEventListener('click', ()=>{
-  if (State.coins < 50) { toast('コインが足りません（50コイン必要）'); return; }
-  State.addCoins(-50);
+  if (State.coins < 200) { toast('コインが足りません（200コイン必要）'); return; }
+  State.addCoins(-200);
   updateCoinDisplays();
 
   const prize = rollGacha();
@@ -2257,5 +2344,117 @@ const BGM = (() => {
 })();
 </script>
 
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getDatabase, ref, push, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCLZMZzVRgXtmXPZMtFGs_twy-tCxfLxb4",
+    authDomain: "my-shooting-game-4d179.firebaseapp.com",
+    databaseURL: "https://my-shooting-game-4d179-default-rtdb.firebaseio.com",
+    projectId: "my-shooting-game-4d179",
+    storageBucket: "my-shooting-game-4d179.firebasestorage.app",
+    messagingSenderId: "841132984379",
+    appId: "1:841132984379:web:94f1446d7e4361a224f41e"
+  };
+
+  window.debugLog && window.debugLog('[RANK] firebase module start');
+  const app = initializeApp(firebaseConfig);
+  window.debugLog && window.debugLog('[RANK] initializeApp done');
+  const db = getDatabase(app);
+  window.debugLog && window.debugLog('[RANK] getDatabase done');
+
+  async function fetchRankingEntries() {
+    window.debugLog && window.debugLog('[RANK] fetchRankingEntries start');
+    const snapshot = await get(ref(db, "rankings"));
+    window.debugLog && window.debugLog('[RANK] fetch snapshot exists=', snapshot.exists());
+    if (!snapshot.exists()) return [];
+    const data = snapshot.val();
+    const rows = Object.values(data).sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+    window.debugLog && window.debugLog('[RANK] fetch rows=', rows.length);
+    return rows;
+  }
+
+  async function saveRankingToFirebase(entry) {
+    window.debugLog && window.debugLog('[RANK] saveRankingToFirebase start', entry);
+    const newRef = await push(ref(db, "rankings"), entry);
+    window.debugLog && window.debugLog('[RANK] push success key=', newRef && newRef.key ? newRef.key : '(no-key)');
+    return newRef;
+  }
+
+  async function isRankIn(score, limit = 5) {
+    window.debugLog && window.debugLog('[RANK] isRankIn start score=', score);
+    const entries = await fetchRankingEntries();
+    if (entries.length < limit) {
+      window.debugLog && window.debugLog('[RANK] isRankIn result=true reason=list<limit');
+      return true;
+    }
+    const result = Number(score) > Number(entries[limit - 1].score || 0);
+    window.debugLog && window.debugLog('[RANK] isRankIn border=', Number(entries[limit - 1].score || 0), 'result=', result);
+    return result;
+  }
+
+  async function renderRanking() {
+    window.debugLog && window.debugLog('[RANK] module renderRanking start');
+    const body = document.getElementById('ranking-body');
+    body.innerHTML = '<div class="rank-empty">読み込み中...</div>';
+
+    try {
+      const entries = (await fetchRankingEntries()).slice(0, 5);
+      window.debugLog && window.debugLog('[RANK] module renderRanking count=', entries.length);
+
+      if (!entries.length) {
+        body.innerHTML = '<div class="rank-empty">まだ記録がありません<br>ゲームをクリアしよう！</div>';
+        return;
+      }
+
+      body.innerHTML = '';
+
+      entries.forEach((e, i) => {
+        const numClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : 'normal';
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+
+        const bonusTags = [
+          e.lifeBonus ? `<span class="bonus-tag" style="background:rgba(255,200,0,0.15);color:#ffcc44;border:1px solid #ffcc4444">❤️ライフ +${Number(e.lifeBonus).toLocaleString()}</span>` : '',
+          e.timeBonus ? `<span class="bonus-tag" style="background:rgba(0,200,255,0.15);color:#00ccff;border:1px solid #00ccff44">⏱${e.bossTime || 0}s +${Number(e.timeBonus).toLocaleString()}</span>` : '',
+          e.killBonus ? `<span class="bonus-tag" style="background:rgba(255,100,0,0.15);color:#ff8844;border:1px solid #ff884444">💥${e.killCount || 0}機 +${Number(e.killBonus).toLocaleString()}</span>` : '',
+        ].filter(Boolean).join('');
+
+        let dateStr = '';
+        try {
+          const d = new Date(e.date);
+          dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
+        } catch (_) {}
+
+        const name = e.name || 'PLAYER';
+
+        const row = document.createElement('div');
+        row.className = 'rank-row';
+        row.innerHTML = `
+          <div class="rank-num ${numClass}">${medal}</div>
+          <div class="rank-info">
+            <div class="rank-score" style="display:flex;align-items:baseline;gap:10px">
+              <span style="font-size:15px;color:#ff88ff;font-weight:bold">${name}</span>
+              <span>${Number(e.score || 0).toLocaleString()}</span>
+            </div>
+            <div class="rank-detail">基本 ${Number(e.baseScore || 0).toLocaleString()} &nbsp;|&nbsp; ${dateStr}</div>
+            ${bonusTags ? `<div class="rank-bonus">${bonusTags}</div>` : ''}
+          </div>`;
+        body.appendChild(row);
+      });
+    } catch (error) {
+      console.error("ランキング読込失敗", error);
+      body.innerHTML = `<div class="rank-empty">読込失敗<br>${error.message}</div>`;
+    }
+  }
+
+  window.firebaseRanking = {
+    saveRankingToFirebase,
+    saveEntry: saveRankingToFirebase,
+    renderRanking,
+    isRankIn,
+    isTop5: isRankIn
+  };
+</script>
 </body>
 </html>
