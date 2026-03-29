@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0055)file:///C:/Users/oudoi/Downloads/index_20260329_10.html -->
+<!-- saved from url=(0055)file:///C:/Users/oudoi/Downloads/index_20260329_11.html -->
 <html lang="ja"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -255,7 +255,7 @@ canvas { display:block; touch-action:none; }
 }
 #toast.show { opacity:1; }
 </style>
-</head>
+<script src="./index_files/phaser.min.js.ダウンロード"></script></head>
 <body>
 <div id="game-container"><canvas width="400" height="700" style="width: 414.629px; height: 725.6px; margin-left: 98px; margin-top: 0px;"></canvas></div>
 
@@ -323,13 +323,40 @@ canvas { display:block; touch-action:none; }
   </div>
 
   <!-- ランキング画面 -->
-  <div class="panel-screen" id="ranking-screen" style="display:none">
+  <div class="panel-screen" id="ranking-screen" style="display: none;">
     <div class="panel-header">
       <div class="back-btn" id="ranking-back">←</div>
       <div class="panel-title" style="color:#4488ff">🏆 ランキング</div>
       <div style="width:36px"></div>
     </div>
-    <div class="panel-body" id="ranking-body"></div>
+    <div class="panel-body" id="ranking-body"><div class="rank-row">
+          <div class="rank-num gold">🥇</div>
+          <div class="rank-info">
+            <div class="rank-score" style="display:flex;align-items:baseline;gap:10px">
+              <span style="font-size:15px;color:#ff88ff;font-weight:bold">DEBUG</span>
+              <span>22,360</span>
+            </div>
+            <div class="rank-detail">基本 8,930 &nbsp;|&nbsp; 3/30</div>
+            <div class="rank-bonus"><span class="bonus-tag" style="background:rgba(255,200,0,0.15);color:#ffcc44;border:1px solid #ffcc4444">❤️ライフ +7,500</span><span class="bonus-tag" style="background:rgba(255,100,0,0.15);color:#ff8844;border:1px solid #ff884444">💥33機 +5,930</span></div>
+          </div></div><div class="rank-row">
+          <div class="rank-num silver">🥈</div>
+          <div class="rank-info">
+            <div class="rank-score" style="display:flex;align-items:baseline;gap:10px">
+              <span style="font-size:15px;color:#ff88ff;font-weight:bold">DEBUG</span>
+              <span>17,192</span>
+            </div>
+            <div class="rank-detail">基本 9,040 &nbsp;|&nbsp; 3/30</div>
+            <div class="rank-bonus"><span class="bonus-tag" style="background:rgba(255,200,0,0.15);color:#ffcc44;border:1px solid #ffcc4444">❤️ライフ +4,500</span><span class="bonus-tag" style="background:rgba(0,200,255,0.15);color:#00ccff;border:1px solid #00ccff44">⏱27s +-2,388</span><span class="bonus-tag" style="background:rgba(255,100,0,0.15);color:#ff8844;border:1px solid #ff884444">💥34機 +6,040</span></div>
+          </div></div><div class="rank-row">
+          <div class="rank-num bronze">🥉</div>
+          <div class="rank-info">
+            <div class="rank-score" style="display:flex;align-items:baseline;gap:10px">
+              <span style="font-size:15px;color:#ff88ff;font-weight:bold">DEBUG</span>
+              <span>9,000</span>
+            </div>
+            <div class="rank-detail">基本 4,500 &nbsp;|&nbsp; 3/30</div>
+            <div class="rank-bonus"><span class="bonus-tag" style="background:rgba(255,200,0,0.15);color:#ffcc44;border:1px solid #ffcc4444">❤️ライフ +3,000</span><span class="bonus-tag" style="background:rgba(255,100,0,0.15);color:#ff8844;border:1px solid #ff884444">💥12機 +1,500</span></div>
+          </div></div></div>
   </div>
 
   <!-- スキンカタログ画面 -->
@@ -374,7 +401,7 @@ canvas { display:block; touch-action:none; }
   overflow:auto; z-index:500; background:rgba(0,0,0,0.85); color:#8cff8c;
   border:1px solid #335533; border-radius:8px; padding:8px 10px; font:12px/1.4 monospace;
   white-space:pre-wrap; display:none; pointer-events:none;
-"><div>[0:43:06] [RANK] firebase module start</div><div>[0:43:06] [RANK] initializeApp done</div><div>[0:43:06] [RANK] getDatabase done</div></div>
+"><div>[0:48:36] [RANK] renderRanking wrapper start</div><div>[0:48:36] [RANK] module renderRanking start</div><div>[0:48:36] [RANK] fetchRankingEntries start</div><div>[0:48:36] [RANK] fetch snapshot exists= true</div><div>[0:48:36] [RANK] fetch rows= 3</div><div>[0:48:36] [RANK] module renderRanking count= 3</div></div>
 
 <div id="debug-controls" style="
   position:fixed; right:8px; top:8px; z-index:501; display:flex; gap:6px;
@@ -397,10 +424,41 @@ canvas { display:block; touch-action:none; }
 </div>
 
 
-<script src="./index_files/phaser.min.js.ダウンロード" onerror="document.getElementById(&#39;phaser-fallback&#39;).src=&#39;https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js&#39;">
-</script>
-<script id="phaser-fallback" src="file:///C:/Users/oudoi/Downloads/index_20260329_10.html"></script>
 <script>
+// Phaser をロードし、完了後にゲームコードを起動する
+(function() {
+  var CDNS = [
+    'https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js',
+    'https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js'
+  ];
+  function loadNext(i) {
+    if (i >= CDNS.length) {
+      document.getElementById('phaser-error').style.display = 'flex';
+      return;
+    }
+    var s = document.createElement('script');
+    s.src = CDNS[i];
+    s.onload = function() {
+      if (window.Phaser) {
+        window._startGame();
+      } else {
+        loadNext(i + 1);
+      }
+    };
+    s.onerror = function() { loadNext(i + 1); };
+    document.head.appendChild(s);
+  }
+  // DOM 構築完了後にロード開始
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { loadNext(0); });
+  } else {
+    loadNext(0);
+  }
+})();
+</script>
+<script>
+// ゲーム本体は _startGame() としてラップし、Phaser ロード後に呼ばれる
+window._startGame = function() {
 // ========================================================
 //  グローバル状態
 // ========================================================
@@ -2372,6 +2430,8 @@ const BGM = (() => {
     setVolume(v) { if(masterGain) masterGain.gain.value = v; }
   };
 })();
+
+}; // end of window._startGame
 </script>
 
 <script type="module">
