@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
+<!-- saved from url=(0054)file:///C:/Users/oudoi/Downloads/index_20260329_5.html -->
+<html lang="ja"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="mobile-web-app-capable" content="yes">
 <title>スペースシューター</title>
@@ -257,16 +257,16 @@ canvas { display:block; touch-action:none; }
 </style>
 </head>
 <body>
-<div id="game-container"></div>
+<div id="game-container"><canvas width="400" height="700" style="width: 414.629px; height: 725.6px; margin-left: 345px; margin-top: 0px;"></canvas></div>
 
 <!-- HTML UI オーバーレイ -->
-<div id="ui-overlay">
+<div id="ui-overlay" class="active">
 
   <!-- ホーム画面 -->
-  <div class="screen" id="home-screen" style="display:none">
+  <div class="screen" id="home-screen" style="display: flex;">
     <div class="home-title">SPACE<br>SHOOTER</div>
     <div class="home-subtitle">STAGE 1-1</div>
-    <div class="coin-display"><span class="coin-icon">🪙</span><span id="home-coin">0</span> コイン</div>
+    <div class="coin-display"><span class="coin-icon">🪙</span><span id="home-coin">2513</span> コイン</div>
     <div class="home-nav">
       <div class="nav-btn game-btn" id="btn-game">
         <div class="icon">🚀</div>GAME
@@ -296,7 +296,7 @@ canvas { display:block; touch-action:none; }
     <div class="panel-header">
       <div class="back-btn" id="shop-back">←</div>
       <div class="panel-title" style="color:#ffaa00">🛒 SHOP</div>
-      <div class="panel-coin">🪙 <span id="shop-coin">0</span></div>
+      <div class="panel-coin">🪙 <span id="shop-coin">2513</span></div>
     </div>
     <div class="panel-body" id="shop-body"></div>
   </div>
@@ -306,7 +306,7 @@ canvas { display:block; touch-action:none; }
     <div class="panel-header">
       <div class="back-btn" id="gacha-back">←</div>
       <div class="panel-title" style="color:#ff66ff">🎰 Gacha</div>
-      <div class="panel-coin">🪙 <span id="gacha-coin">0</span></div>
+      <div class="panel-coin">🪙 <span id="gacha-coin">2513</span></div>
     </div>
     <div class="panel-body">
       <div class="gacha-area">
@@ -337,7 +337,7 @@ canvas { display:block; touch-action:none; }
     <div class="panel-header">
       <div class="back-btn" id="skin-back">←</div>
       <div class="panel-title" style="color:#ff88ff">🎨 スキンカタログ</div>
-      <div class="panel-coin">🪙 <span id="skin-coin">0</span></div>
+      <div class="panel-coin">🪙 <span id="skin-coin">2513</span></div>
     </div>
     <div class="panel-body" id="skin-body"></div>
   </div>
@@ -363,7 +363,7 @@ canvas { display:block; touch-action:none; }
     <div class="name-modal-title">🏆 RANKING IN!</div>
     <div class="name-modal-score" id="modal-score-val"></div>
     <div class="name-modal-label">名前を入力してください（最大8文字）</div>
-    <input id="name-input" type="text" maxlength="8" placeholder="PLAYER" autocomplete="off" />
+    <input id="name-input" type="text" maxlength="8" placeholder="PLAYER" autocomplete="off">
     <button class="name-modal-btn" id="name-modal-ok">登録する</button>
   </div>
 </div>
@@ -374,7 +374,7 @@ canvas { display:block; touch-action:none; }
   overflow:auto; z-index:500; background:rgba(0,0,0,0.85); color:#8cff8c;
   border:1px solid #335533; border-radius:8px; padding:8px 10px; font:12px/1.4 monospace;
   white-space:pre-wrap; display:none; pointer-events:none;
-"></div>
+"><div>[0:20:22] [RANK] firebase module start</div><div>[0:20:22] [RANK] initializeApp done</div><div>[0:20:22] [RANK] getDatabase done</div></div>
 
 <div id="debug-controls" style="
   position:fixed; right:8px; top:8px; z-index:501; display:flex; gap:6px;
@@ -386,7 +386,7 @@ canvas { display:block; touch-action:none; }
 <div id="toast"></div>
 
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
+<script src="./index_files/phaser.min.js.ダウンロード"></script>
 <script>
 // ========================================================
 //  グローバル状態
@@ -738,15 +738,32 @@ function renderGachaHistory() {
 // ランキング描画（Firebase共有ランキング）
 async function renderRanking() {
   window.debugLog && window.debugLog('[RANK] renderRanking wrapper start');
+  const body = document.getElementById('ranking-body');
+
+  // firebaseRanking が未初期化の場合、最大5秒ポーリングして待つ
   if (!window.firebaseRanking || !window.firebaseRanking.renderRanking) {
-    const body = document.getElementById('ranking-body');
-    body.innerHTML = '<div class="rank-empty">Firebase初期化中です…</div>';
-    window.debugLog && window.debugLog('[RANK] firebaseRanking not ready');
-    return;
+    body.innerHTML = '<div class="rank-empty">接続中...</div>';
+    await new Promise((resolve, reject) => {
+      const start = Date.now();
+      const timer = setInterval(() => {
+        if (window.firebaseRanking && window.firebaseRanking.renderRanking) {
+          clearInterval(timer);
+          resolve();
+        } else if (Date.now() - start > 5000) {
+          clearInterval(timer);
+          reject(new Error('Firebase の初期化がタイムアウトしました'));
+        }
+      }, 100);
+    }).catch(err => {
+      body.innerHTML = `<div class="rank-empty">読込失敗<br>${err.message}</div>`;
+      window.debugLog && window.debugLog('[RANK] firebaseRanking timeout');
+      return null;
+    });
+    if (!window.firebaseRanking) return;
   }
+
   return await window.firebaseRanking.renderRanking();
 }
-
 
 // スキンカタログ描画
 function renderSkin() {
@@ -1613,9 +1630,9 @@ class GameScene extends Phaser.Scene {
     // ② ボス破壊タイムボーナス: 最大5000点、30秒以内が満点、120秒以上は0
     const bossElapsed = (this.time.now - (this.bossStartTime||this.time.now)) / 1000;
     const timeBonus =
-       bossElapsed <= 10
+       bossElapsed <= 5
         ? 5000
-    	: bossElapsed >= 40
+    	: bossElapsed >= 20
       	? 0
       	: Math.floor(5000 * (20 - bossElapsed) / 15);
     
@@ -2456,5 +2473,6 @@ const BGM = (() => {
     isTop5: isRankIn
   };
 </script>
-</body>
-</html>
+
+
+</body></html>
