@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0054)file:///C:/Users/oudoi/Downloads/index_20260329_5.html -->
+<!-- saved from url=(0055)file:///C:/Users/oudoi/Downloads/index_20260329_10.html -->
 <html lang="ja"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -257,7 +257,7 @@ canvas { display:block; touch-action:none; }
 </style>
 </head>
 <body>
-<div id="game-container"><canvas width="400" height="700" style="width: 414.629px; height: 725.6px; margin-left: 345px; margin-top: 0px;"></canvas></div>
+<div id="game-container"><canvas width="400" height="700" style="width: 414.629px; height: 725.6px; margin-left: 98px; margin-top: 0px;"></canvas></div>
 
 <!-- HTML UI オーバーレイ -->
 <div id="ui-overlay" class="active">
@@ -266,7 +266,7 @@ canvas { display:block; touch-action:none; }
   <div class="screen" id="home-screen" style="display: flex;">
     <div class="home-title">SPACE<br>SHOOTER</div>
     <div class="home-subtitle">STAGE 1-1</div>
-    <div class="coin-display"><span class="coin-icon">🪙</span><span id="home-coin">2513</span> コイン</div>
+    <div class="coin-display"><span class="coin-icon">🪙</span><span id="home-coin">3122</span> コイン</div>
     <div class="home-nav">
       <div class="nav-btn game-btn" id="btn-game">
         <div class="icon">🚀</div>GAME
@@ -296,7 +296,7 @@ canvas { display:block; touch-action:none; }
     <div class="panel-header">
       <div class="back-btn" id="shop-back">←</div>
       <div class="panel-title" style="color:#ffaa00">🛒 SHOP</div>
-      <div class="panel-coin">🪙 <span id="shop-coin">2513</span></div>
+      <div class="panel-coin">🪙 <span id="shop-coin">3122</span></div>
     </div>
     <div class="panel-body" id="shop-body"></div>
   </div>
@@ -306,7 +306,7 @@ canvas { display:block; touch-action:none; }
     <div class="panel-header">
       <div class="back-btn" id="gacha-back">←</div>
       <div class="panel-title" style="color:#ff66ff">🎰 Gacha</div>
-      <div class="panel-coin">🪙 <span id="gacha-coin">2513</span></div>
+      <div class="panel-coin">🪙 <span id="gacha-coin">3122</span></div>
     </div>
     <div class="panel-body">
       <div class="gacha-area">
@@ -337,7 +337,7 @@ canvas { display:block; touch-action:none; }
     <div class="panel-header">
       <div class="back-btn" id="skin-back">←</div>
       <div class="panel-title" style="color:#ff88ff">🎨 スキンカタログ</div>
-      <div class="panel-coin">🪙 <span id="skin-coin">2513</span></div>
+      <div class="panel-coin">🪙 <span id="skin-coin">3122</span></div>
     </div>
     <div class="panel-body" id="skin-body"></div>
   </div>
@@ -374,7 +374,7 @@ canvas { display:block; touch-action:none; }
   overflow:auto; z-index:500; background:rgba(0,0,0,0.85); color:#8cff8c;
   border:1px solid #335533; border-radius:8px; padding:8px 10px; font:12px/1.4 monospace;
   white-space:pre-wrap; display:none; pointer-events:none;
-"><div>[0:20:22] [RANK] firebase module start</div><div>[0:20:22] [RANK] initializeApp done</div><div>[0:20:22] [RANK] getDatabase done</div></div>
+"><div>[0:43:06] [RANK] firebase module start</div><div>[0:43:06] [RANK] initializeApp done</div><div>[0:43:06] [RANK] getDatabase done</div></div>
 
 <div id="debug-controls" style="
   position:fixed; right:8px; top:8px; z-index:501; display:flex; gap:6px;
@@ -385,8 +385,21 @@ canvas { display:block; touch-action:none; }
 
 <div id="toast"></div>
 
+<div id="phaser-error" style="display:none;position:fixed;inset:0;background:#000;color:#ff4444;
+  align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:999;
+  font-family:&#39;Courier New&#39;,monospace;text-align:center;padding:24px;">
+  <div style="font-size:24px">⚠️ 読み込みエラー</div>
+  <div style="font-size:14px;color:#aaa">ゲームエンジンの読み込みに失敗しました。<br>通信状態を確認してページを再読み込みしてください。</div>
+  <button onclick="location.reload()" style="padding:12px 28px;border-radius:10px;border:2px solid #ff4444;
+    background:rgba(255,68,68,0.15);color:#ff4444;font-size:16px;font-family:&#39;Courier New&#39;,monospace;cursor:pointer;">
+    再読み込み
+  </button>
+</div>
 
-<script src="./index_files/phaser.min.js.ダウンロード"></script>
+
+<script src="./index_files/phaser.min.js.ダウンロード" onerror="document.getElementById(&#39;phaser-fallback&#39;).src=&#39;https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js&#39;">
+</script>
+<script id="phaser-fallback" src="file:///C:/Users/oudoi/Downloads/index_20260329_10.html"></script>
 <script>
 // ========================================================
 //  グローバル状態
