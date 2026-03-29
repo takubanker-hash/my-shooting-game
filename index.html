@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0055)file:///C:/Users/oudoi/Downloads/index_20260329_11.html -->
+<!-- saved from url=(0055)file:///C:/Users/oudoi/Downloads/index_20260329_13.html -->
 <html lang="ja"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -8,8 +8,16 @@
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 html,body { width:100%; height:100%; background:#000; overflow:hidden; touch-action:none; font-family:'Courier New',monospace; }
-#game-container { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
-canvas { display:block; touch-action:none; }
+#game-container {
+  position:fixed; top:0; left:0; width:100%; height:100%;
+  display:flex; align-items:center; justify-content:center;
+}
+#game-container canvas {
+  display:block; touch-action:none;
+  position:relative !important;
+  left:auto !important; top:auto !important;
+  margin:0 auto;
+}
 
 /* ===== HTML UI オーバーレイ ===== */
 #ui-overlay {
@@ -257,7 +265,7 @@ canvas { display:block; touch-action:none; }
 </style>
 <script src="./index_files/phaser.min.js.ダウンロード"></script></head>
 <body>
-<div id="game-container"><canvas width="400" height="700" style="width: 414.629px; height: 725.6px; margin-left: 98px; margin-top: 0px;"></canvas></div>
+<div id="game-container"><canvas width="400" height="700" style="width: 414.629px; height: 725.6px;"></canvas></div>
 
 <!-- HTML UI オーバーレイ -->
 <div id="ui-overlay" class="active">
@@ -323,40 +331,13 @@ canvas { display:block; touch-action:none; }
   </div>
 
   <!-- ランキング画面 -->
-  <div class="panel-screen" id="ranking-screen" style="display: none;">
+  <div class="panel-screen" id="ranking-screen" style="display:none">
     <div class="panel-header">
       <div class="back-btn" id="ranking-back">←</div>
       <div class="panel-title" style="color:#4488ff">🏆 ランキング</div>
       <div style="width:36px"></div>
     </div>
-    <div class="panel-body" id="ranking-body"><div class="rank-row">
-          <div class="rank-num gold">🥇</div>
-          <div class="rank-info">
-            <div class="rank-score" style="display:flex;align-items:baseline;gap:10px">
-              <span style="font-size:15px;color:#ff88ff;font-weight:bold">DEBUG</span>
-              <span>22,360</span>
-            </div>
-            <div class="rank-detail">基本 8,930 &nbsp;|&nbsp; 3/30</div>
-            <div class="rank-bonus"><span class="bonus-tag" style="background:rgba(255,200,0,0.15);color:#ffcc44;border:1px solid #ffcc4444">❤️ライフ +7,500</span><span class="bonus-tag" style="background:rgba(255,100,0,0.15);color:#ff8844;border:1px solid #ff884444">💥33機 +5,930</span></div>
-          </div></div><div class="rank-row">
-          <div class="rank-num silver">🥈</div>
-          <div class="rank-info">
-            <div class="rank-score" style="display:flex;align-items:baseline;gap:10px">
-              <span style="font-size:15px;color:#ff88ff;font-weight:bold">DEBUG</span>
-              <span>17,192</span>
-            </div>
-            <div class="rank-detail">基本 9,040 &nbsp;|&nbsp; 3/30</div>
-            <div class="rank-bonus"><span class="bonus-tag" style="background:rgba(255,200,0,0.15);color:#ffcc44;border:1px solid #ffcc4444">❤️ライフ +4,500</span><span class="bonus-tag" style="background:rgba(0,200,255,0.15);color:#00ccff;border:1px solid #00ccff44">⏱27s +-2,388</span><span class="bonus-tag" style="background:rgba(255,100,0,0.15);color:#ff8844;border:1px solid #ff884444">💥34機 +6,040</span></div>
-          </div></div><div class="rank-row">
-          <div class="rank-num bronze">🥉</div>
-          <div class="rank-info">
-            <div class="rank-score" style="display:flex;align-items:baseline;gap:10px">
-              <span style="font-size:15px;color:#ff88ff;font-weight:bold">DEBUG</span>
-              <span>9,000</span>
-            </div>
-            <div class="rank-detail">基本 4,500 &nbsp;|&nbsp; 3/30</div>
-            <div class="rank-bonus"><span class="bonus-tag" style="background:rgba(255,200,0,0.15);color:#ffcc44;border:1px solid #ffcc4444">❤️ライフ +3,000</span><span class="bonus-tag" style="background:rgba(255,100,0,0.15);color:#ff8844;border:1px solid #ff884444">💥12機 +1,500</span></div>
-          </div></div></div>
+    <div class="panel-body" id="ranking-body"></div>
   </div>
 
   <!-- スキンカタログ画面 -->
@@ -401,7 +382,7 @@ canvas { display:block; touch-action:none; }
   overflow:auto; z-index:500; background:rgba(0,0,0,0.85); color:#8cff8c;
   border:1px solid #335533; border-radius:8px; padding:8px 10px; font:12px/1.4 monospace;
   white-space:pre-wrap; display:none; pointer-events:none;
-"><div>[0:48:36] [RANK] renderRanking wrapper start</div><div>[0:48:36] [RANK] module renderRanking start</div><div>[0:48:36] [RANK] fetchRankingEntries start</div><div>[0:48:36] [RANK] fetch snapshot exists= true</div><div>[0:48:36] [RANK] fetch rows= 3</div><div>[0:48:36] [RANK] module renderRanking count= 3</div></div>
+"></div>
 
 <div id="debug-controls" style="
   position:fixed; right:8px; top:8px; z-index:501; display:flex; gap:6px;
@@ -2181,7 +2162,7 @@ const phaserGame = new Phaser.Game({
   backgroundColor:'#04040f',
   scale:{
     mode:Phaser.Scale.FIT,
-    autoCenter:Phaser.Scale.CENTER_BOTH,
+    autoCenter:Phaser.Scale.NO_CENTER,
     width:GW, height:GH,
   },
   physics:{ default:'arcade', arcade:{gravity:{y:0},debug:false} },
