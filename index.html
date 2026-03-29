@@ -1,0 +1,2261 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<title>スペースシューター</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html,body { width:100%; height:100%; background:#000; overflow:hidden; touch-action:none; font-family:'Courier New',monospace; }
+#game-container { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+canvas { display:block; touch-action:none; }
+
+/* ===== HTML UI オーバーレイ ===== */
+#ui-overlay {
+  position:fixed; top:0; left:0; width:100%; height:100%;
+  display:none; align-items:center; justify-content:center;
+  background:#000; z-index:100;
+}
+#ui-overlay.active { display:flex; }
+
+.screen {
+  width:100%; max-width:400px; height:100%; max-height:700px;
+  display:flex; flex-direction:column; align-items:center;
+  position:relative; overflow:hidden;
+}
+
+/* 星背景 */
+.screen::before {
+  content:''; position:absolute; inset:0;
+  background:radial-gradient(ellipse at 50% 0%, #0a0a2a 0%, #000 70%);
+  z-index:0;
+}
+
+/* ホーム画面 */
+#home-screen { justify-content:center; gap:0; }
+.home-title {
+  font-size:28px; color:#00ffff; text-align:center;
+  text-shadow:0 0 20px #00ffff; letter-spacing:4px;
+  margin-bottom:8px; z-index:1; padding-top:40px;
+}
+.home-subtitle { font-size:12px; color:#4488aa; z-index:1; margin-bottom:30px; letter-spacing:2px; }
+.coin-display {
+  background:rgba(255,200,0,0.12); border:1px solid #ffcc00;
+  border-radius:20px; padding:8px 20px; color:#ffcc00;
+  font-size:16px; font-weight:bold; z-index:1; margin-bottom:36px;
+  display:flex; align-items:center; gap:8px;
+}
+.coin-icon { font-size:20px; }
+.home-nav { display:flex; gap:16px; z-index:1; }
+.nav-btn {
+  width:100px; height:100px; border-radius:16px; border:2px solid;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:8px; cursor:pointer; transition:transform 0.1s, box-shadow 0.1s;
+  background:rgba(0,0,0,0.6); color:#fff; font-size:11px;
+  font-family:'Courier New',monospace; font-weight:bold; letter-spacing:1px;
+  -webkit-tap-highlight-color:transparent;
+}
+.nav-btn:active { transform:scale(0.93); }
+.nav-btn .icon { font-size:32px; }
+.nav-btn.game-btn { border-color:#00ffcc; color:#00ffcc; box-shadow:0 0 16px rgba(0,255,204,0.2); }
+.nav-btn.shop-btn { border-color:#ffaa00; color:#ffaa00; box-shadow:0 0 16px rgba(255,170,0,0.2); }
+.nav-btn.gacha-btn { border-color:#ff66ff; color:#ff66ff; box-shadow:0 0 16px rgba(255,102,255,0.2); }
+
+/* 共通パネル */
+.panel-screen {
+  width:100%; max-width:400px; height:100%; max-height:700px;
+  display:flex; flex-direction:column; background:#050510;
+  position:relative;
+}
+.panel-header {
+  display:flex; align-items:center; padding:16px;
+  border-bottom:1px solid #1a1a3a; z-index:1;
+}
+.back-btn {
+  width:36px; height:36px; border-radius:8px; border:1px solid #334;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; color:#aaa; font-size:18px; background:rgba(255,255,255,0.05);
+  -webkit-tap-highlight-color:transparent;
+}
+.back-btn:active { background:rgba(255,255,255,0.12); }
+.panel-title { flex:1; text-align:center; font-size:18px; letter-spacing:3px; }
+.panel-coin { color:#ffcc00; font-size:14px; display:flex; align-items:center; gap:4px; }
+.panel-body { flex:1; overflow-y:auto; padding:16px; z-index:1; }
+
+/* ショップ */
+.shop-item {
+  background:rgba(255,255,255,0.04); border:1px solid #223;
+  border-radius:12px; padding:14px; margin-bottom:12px;
+  display:flex; align-items:center; gap:12px;
+}
+.shop-icon { font-size:32px; width:48px; text-align:center; }
+.shop-info { flex:1; }
+.shop-name { font-size:14px; color:#eee; font-weight:bold; }
+.shop-desc { font-size:11px; color:#778; margin-top:3px; }
+.shop-owned { font-size:11px; color:#4f8; margin-top:3px; }
+.buy-btn {
+  padding:8px 14px; border-radius:8px; border:none; cursor:pointer;
+  font-family:'Courier New',monospace; font-size:12px; font-weight:bold;
+  background:linear-gradient(135deg,#224,#113); color:#ffcc00; border:1px solid #ffcc00;
+  -webkit-tap-highlight-color:transparent; white-space:nowrap;
+}
+.buy-btn:active { transform:scale(0.94); }
+.buy-btn.owned { color:#4f8; border-color:#4f8; background:rgba(64,255,128,0.08); }
+.buy-btn:disabled { opacity:0.4; cursor:default; }
+
+/* ガチャ */
+.gacha-area { display:flex; flex-direction:column; align-items:center; gap:20px; padding-top:20px; }
+.gacha-machine {
+  width:200px; height:200px; border-radius:50%; border:3px solid #ff66ff;
+  display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(circle, #1a0033 0%, #050010 70%);
+  font-size:80px; cursor:pointer; position:relative;
+  box-shadow:0 0 40px rgba(255,102,255,0.3);
+  -webkit-tap-highlight-color:transparent; transition:transform 0.1s;
+}
+.gacha-machine:active { transform:scale(0.95); }
+.gacha-machine.spin {
+  animation: gacha-spin 0.6s ease-in-out;
+}
+@keyframes gacha-spin {
+  0%   { transform:scale(1) rotate(0deg); }
+  40%  { transform:scale(0.85) rotate(180deg); }
+  100% { transform:scale(1) rotate(360deg); }
+}
+.gacha-cost { color:#ff66ff; font-size:14px; letter-spacing:2px; }
+.gacha-btn {
+  padding:14px 40px; border-radius:12px; border:2px solid #ff66ff;
+  background:rgba(255,102,255,0.12); color:#ff66ff;
+  font-family:'Courier New',monospace; font-size:16px; font-weight:bold;
+  cursor:pointer; letter-spacing:2px; -webkit-tap-highlight-color:transparent;
+}
+.gacha-btn:active { transform:scale(0.95); background:rgba(255,102,255,0.25); }
+.gacha-btn:disabled { opacity:0.4; cursor:default; }
+.gacha-result {
+  text-align:center; min-height:80px; display:flex;
+  flex-direction:column; align-items:center; gap:8px;
+}
+.gacha-result-icon { font-size:48px; }
+.gacha-result-name { font-size:16px; font-weight:bold; }
+.gacha-result-desc { font-size:12px; color:#aaa; }
+.gacha-history { width:100%; }
+.gacha-history-title { font-size:12px; color:#556; margin-bottom:8px; letter-spacing:2px; }
+.gacha-history-list { display:flex; flex-wrap:wrap; gap:6px; }
+.gacha-badge {
+  padding:4px 8px; border-radius:6px; font-size:11px;
+  background:rgba(255,255,255,0.07); color:#aaa; border:1px solid #333;
+}
+
+/* クリア画面 */
+.clear-screen {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  width:100%; height:100%; gap:16px; text-align:center; padding:30px;
+  background:radial-gradient(ellipse at 50% 30%, #001a33 0%, #000 70%);
+}
+.clear-title { font-size:38px; color:#ffff44; text-shadow:0 0 30px #ffff44; letter-spacing:4px; }
+.clear-stage { font-size:16px; color:#88aaff; letter-spacing:3px; }
+.clear-score { font-size:28px; color:#00ffff; }
+.clear-coins {
+  background:rgba(255,200,0,0.12); border:1px solid #ffcc00;
+  border-radius:16px; padding:12px 30px; color:#ffcc00;
+  font-size:22px; font-weight:bold;
+}
+.clear-coin-label { font-size:13px; color:#aa8800; margin-bottom:4px; }
+.clear-btn {
+  margin-top:10px; padding:14px 40px; border-radius:12px;
+  border:2px solid #00ffcc; background:rgba(0,255,204,0.1);
+  color:#00ffcc; font-family:'Courier New',monospace;
+  font-size:16px; font-weight:bold; cursor:pointer; letter-spacing:2px;
+  -webkit-tap-highlight-color:transparent;
+}
+.clear-btn:active { transform:scale(0.95); }
+
+/* ランキング画面 */
+.rank-row {
+  display:flex; align-items:center; gap:12px;
+  padding:10px 14px; border-radius:10px; margin-bottom:8px;
+  background:rgba(255,255,255,0.04); border:1px solid #1a1a3a;
+}
+.rank-num { font-size:20px; width:32px; text-align:center; font-weight:bold; }
+.rank-num.gold   { color:#ffcc00; }
+.rank-num.silver { color:#cccccc; }
+.rank-num.bronze { color:#cc8844; }
+.rank-num.normal { color:#556; }
+.rank-info { flex:1; }
+.rank-score { font-size:18px; color:#00ffff; font-weight:bold; }
+.rank-detail { font-size:11px; color:#556; margin-top:2px; }
+.rank-bonus { font-size:11px; margin-top:3px; display:flex; gap:6px; flex-wrap:wrap; }
+.bonus-tag { padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold; }
+.bonus-nodmg  { background:rgba(0,255,100,0.15); color:#00ff66; border:1px solid #00ff6644; }
+.bonus-noshot { background:rgba(0,200,255,0.15); color:#00ccff; border:1px solid #00ccff44; }
+.rank-empty { text-align:center; padding:40px 0; color:#334; font-size:14px; }
+
+/* スキンカタログ */
+.skin-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.skin-card {
+  background:rgba(255,255,255,0.04); border:1px solid #223;
+  border-radius:12px; padding:10px 8px;
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  cursor:pointer; transition:transform 0.1s;
+  position:relative;
+}
+.skin-card.active-skin { border-color:#ff88ff; box-shadow:0 0 14px rgba(255,136,255,0.35); }
+.skin-card.locked { opacity:0.55; }
+.skin-card:active { transform:scale(0.95); }
+.skin-preview { width:44px; height:44px; display:flex; align-items:center; justify-content:center; }
+.skin-preview canvas { image-rendering:pixelated; }
+.skin-name { font-size:12px; color:#eee; font-weight:bold; text-align:center; }
+.skin-rarity { font-size:10px; font-weight:bold; letter-spacing:1px; }
+.skin-desc { font-size:10px; color:#778; text-align:center; }
+.skin-active-badge {
+  position:absolute; top:6px; right:6px;
+  background:#ff88ff; color:#000; font-size:9px; font-weight:bold;
+  padding:2px 5px; border-radius:4px;
+}
+.skin-locked-icon { font-size:28px; }
+
+/* 名前入力モーダル */
+#name-modal {
+  position:fixed; inset:0; background:rgba(0,0,0,0.82);
+  display:none; align-items:center; justify-content:center; z-index:300;
+}
+#name-modal.active { display:flex; }
+.name-modal-box {
+  background:#0a0a22; border:2px solid #ffff44;
+  border-radius:16px; padding:28px 24px; width:320px; max-width:90vw;
+  display:flex; flex-direction:column; align-items:center; gap:16px;
+  box-shadow:0 0 40px rgba(255,255,68,0.25);
+}
+.name-modal-title { font-size:18px; color:#ffff44; letter-spacing:3px; font-weight:bold; }
+.name-modal-score { font-size:26px; color:#00ffff; font-weight:bold; }
+.name-modal-label { font-size:13px; color:#aaa; }
+#name-input {
+  width:100%; padding:10px 14px; border-radius:10px;
+  border:2px solid #ffff44; background:#111128; color:#fff;
+  font-size:18px; font-family:'Courier New',monospace;
+  text-align:center; letter-spacing:2px; outline:none;
+}
+#name-input::placeholder { color:#445; }
+.name-modal-btn {
+  padding:12px 36px; border-radius:10px; border:2px solid #00ffcc;
+  background:rgba(0,255,204,0.12); color:#00ffcc;
+  font-family:'Courier New',monospace; font-size:16px; font-weight:bold;
+  cursor:pointer; letter-spacing:2px;
+}
+.name-modal-btn:active { transform:scale(0.95); }
+
+/* Toast */
+#toast {
+  position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+  background:rgba(0,0,0,0.85); color:#fff; padding:10px 22px;
+  border-radius:20px; font-size:13px; z-index:200;
+  opacity:0; transition:opacity 0.3s; pointer-events:none;
+  border:1px solid #334; white-space:nowrap;
+}
+#toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<div id="game-container"></div>
+
+<!-- HTML UI オーバーレイ -->
+<div id="ui-overlay">
+
+  <!-- ホーム画面 -->
+  <div class="screen" id="home-screen" style="display:none">
+    <div class="home-title">SPACE<br>SHOOTER</div>
+    <div class="home-subtitle">STAGE 1-1</div>
+    <div class="coin-display"><span class="coin-icon">🪙</span><span id="home-coin">0</span> コイン</div>
+    <div class="home-nav">
+      <div class="nav-btn game-btn" id="btn-game">
+        <div class="icon">🚀</div>GAME
+      </div>
+      <div class="nav-btn shop-btn" id="btn-shop">
+        <div class="icon">🛒</div>SHOP
+      </div>
+      <div class="nav-btn gacha-btn" id="btn-gacha">
+        <div class="icon">🎰</div>ガチャ
+      </div>
+    </div>
+    <div style="margin-top:16px;z-index:1;display:flex;flex-direction:column;gap:10px;align-items:center">
+      <div class="nav-btn" id="btn-skin" style="width:220px;height:54px;flex-direction:row;border-color:#ff88ff;color:#ff88ff;box-shadow:0 0 12px rgba(255,136,255,0.2);font-size:13px;gap:10px">
+        <div class="icon" style="font-size:22px">🎨</div>スキンカタログ
+      </div>
+      <div class="nav-btn" id="btn-ranking" style="width:220px;height:54px;flex-direction:row;border-color:#4488ff;color:#4488ff;box-shadow:0 0 12px rgba(68,136,255,0.2);font-size:13px;gap:10px">
+        <div class="icon" style="font-size:22px">🏆</div>ランキング
+      </div>
+    </div>
+    <div style="margin-top:24px;font-size:11px;color:#334;z-index:1;letter-spacing:1px">
+      所持アイテム: <span id="home-items" style="color:#556">なし</span>
+    </div>
+  </div>
+
+  <!-- ショップ画面 -->
+  <div class="panel-screen" id="shop-screen" style="display:none">
+    <div class="panel-header">
+      <div class="back-btn" id="shop-back">←</div>
+      <div class="panel-title" style="color:#ffaa00">🛒 SHOP</div>
+      <div class="panel-coin">🪙 <span id="shop-coin">0</span></div>
+    </div>
+    <div class="panel-body" id="shop-body"></div>
+  </div>
+
+  <!-- ガチャ画面 -->
+  <div class="panel-screen" id="gacha-screen" style="display:none">
+    <div class="panel-header">
+      <div class="back-btn" id="gacha-back">←</div>
+      <div class="panel-title" style="color:#ff66ff">🎰 ガチャ</div>
+      <div class="panel-coin">🪙 <span id="gacha-coin">0</span></div>
+    </div>
+    <div class="panel-body">
+      <div class="gacha-area">
+        <div class="gacha-machine" id="gacha-machine">🎲</div>
+        <div class="gacha-cost">1回 = 50コイン</div>
+        <button class="gacha-btn" id="gacha-btn">ガチャを回す</button>
+        <div class="gacha-result" id="gacha-result"></div>
+        <div class="gacha-history" id="gacha-history" style="display:none">
+          <div class="gacha-history-title">入手済み</div>
+          <div class="gacha-history-list" id="gacha-history-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ランキング画面 -->
+  <div class="panel-screen" id="ranking-screen" style="display:none">
+    <div class="panel-header">
+      <div class="back-btn" id="ranking-back">←</div>
+      <div class="panel-title" style="color:#4488ff">🏆 ランキング</div>
+      <div style="width:36px"></div>
+    </div>
+    <div class="panel-body" id="ranking-body"></div>
+  </div>
+
+  <!-- スキンカタログ画面 -->
+  <div class="panel-screen" id="skin-screen" style="display:none">
+    <div class="panel-header">
+      <div class="back-btn" id="skin-back">←</div>
+      <div class="panel-title" style="color:#ff88ff">🎨 スキンカタログ</div>
+      <div class="panel-coin">🪙 <span id="skin-coin">0</span></div>
+    </div>
+    <div class="panel-body" id="skin-body"></div>
+  </div>
+
+  <!-- クリア画面 -->
+  <div class="clear-screen" id="clear-screen" style="display:none">
+    <div class="clear-stage">STAGE 1-1 CLEAR!</div>
+    <div class="clear-title">★ CLEAR ★</div>
+    <div class="clear-score">SCORE <span id="clear-score-val">0</span></div>
+    <div id="clear-bonuses" style="display:flex;flex-direction:column;gap:6px;align-items:center;min-height:40px"></div>
+    <div>
+      <div class="clear-coin-label">獲得コイン</div>
+      <div class="clear-coins">🪙 +<span id="clear-coins-val">0</span></div>
+    </div>
+    <button class="clear-btn" id="clear-home-btn">ホームへ</button>
+  </div>
+
+</div>
+
+<!-- 名前入力モーダル -->
+<div id="name-modal">
+  <div class="name-modal-box">
+    <div class="name-modal-title">🏆 RANKING IN!</div>
+    <div class="name-modal-score" id="modal-score-val"></div>
+    <div class="name-modal-label">名前を入力してください（最大8文字）</div>
+    <input id="name-input" type="text" maxlength="8" placeholder="PLAYER" autocomplete="off" />
+    <button class="name-modal-btn" id="name-modal-ok">登録する</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
+<script>
+// ========================================================
+//  グローバル状態
+// ========================================================
+const GW = 400, GH = 700;
+
+const State = {
+  coins: parseInt(localStorage.getItem('coins') || '0'),
+  items: JSON.parse(localStorage.getItem('items') || '[]'),
+  gachaHistory: JSON.parse(localStorage.getItem('gachaHistory') || '[]'),
+  ranking: JSON.parse(localStorage.getItem('ranking') || '[]'), // top 10
+  save() {
+    localStorage.setItem('coins', this.coins);
+    localStorage.setItem('items', JSON.stringify(this.items));
+    localStorage.setItem('gachaHistory', JSON.stringify(this.gachaHistory));
+    localStorage.setItem('ranking', JSON.stringify(this.ranking));
+  },
+  addCoins(n) { this.coins += n; this.save(); },
+  hasItem(id) { return this.items.includes(id); },
+  addItem(id) { if (!this.hasItem(id)) { this.items.push(id); this.save(); } },
+  addRankEntry(entry) {
+    // entry: { score, baseScore, noDmgBonus, noShotBonus, date, name }
+    this.ranking.push(entry);
+    this.ranking.sort((a,b)=>b.score-a.score);
+    if (this.ranking.length > 5) this.ranking.length = 5;
+    this.save();
+  },
+  // スコアがトップ5に入るか判定
+  isRankIn(score) {
+    if (this.ranking.length < 5) return true;
+    return score > this.ranking[4].score;
+  }
+};
+
+// ショップ商品定義
+const SHOP_ITEMS = [
+  { id:'shield',  name:'シールド強化',  desc:'バリアの持続時間+50%',  icon:'🛡️', price:120 },
+  { id:'power',   name:'攻撃力UP',      desc:'弾のダメージ2倍',        icon:'⚡', price:150 },
+  { id:'speed',   name:'機体速度UP',    desc:'移動速度+30%',           icon:'🚀', price:100 },
+  { id:'lives',   name:'残機+1',        desc:'開始時ライフが9に',       icon:'❤️', price:80  },
+];
+
+// ===== スキン定義（12種） =====
+const SKIN_DEFS = [
+  { id:'skin_default', name:'スタンダード',  icon:'🚀', rarity:'common',    desc:'デフォルトの機体',  draw:(g)=>{
+    g.fillStyle(0x0088bb); g.fillTriangle(0,44,8,26,20,34); g.fillTriangle(40,44,32,26,20,34);
+    g.fillStyle(0x00eeff); g.fillTriangle(20,0,0,44,40,44);
+    g.fillStyle(0xffffff,0.9); g.fillEllipse(20,20,10,14);
+    g.fillStyle(0xff6600); g.fillTriangle(12,44,18,56,24,44);
+    g.fillStyle(0xffff00); g.fillTriangle(14,44,20,52,26,44);
+  }},
+  { id:'skin_red',     name:'レッドファイア', icon:'🔴', rarity:'common',    desc:'炎のような赤い機体', draw:(g)=>{
+    g.fillStyle(0xaa0011); g.fillTriangle(0,44,8,26,20,34); g.fillTriangle(40,44,32,26,20,34);
+    g.fillStyle(0xff2200); g.fillTriangle(20,0,0,44,40,44);
+    g.fillStyle(0xffcc00,0.9); g.fillEllipse(20,20,10,14);
+    g.fillStyle(0xff6600); g.fillTriangle(12,44,18,56,24,44);
+    g.fillStyle(0xffff00); g.fillTriangle(14,44,20,52,26,44);
+  }},
+  { id:'skin_gold',    name:'ゴールドクラッド', icon:'⭐', rarity:'rare',    desc:'黄金に輝く装甲',   draw:(g)=>{
+    g.fillStyle(0xaa7700); g.fillTriangle(0,44,8,26,20,34); g.fillTriangle(40,44,32,26,20,34);
+    g.fillStyle(0xffcc00); g.fillTriangle(20,0,0,44,40,44);
+    g.fillStyle(0xffffff,0.9); g.fillEllipse(20,20,10,14);
+    g.fillStyle(0xff8800); g.fillTriangle(12,44,18,56,24,44);
+    g.fillStyle(0xffee88); g.fillTriangle(14,44,20,52,26,44);
+  }},
+  { id:'skin_green',   name:'エメラルド',    icon:'💚', rarity:'common',    desc:'深緑の精鋭機',      draw:(g)=>{
+    g.fillStyle(0x006622); g.fillTriangle(0,44,8,26,20,34); g.fillTriangle(40,44,32,26,20,34);
+    g.fillStyle(0x00ff66); g.fillTriangle(20,0,0,44,40,44);
+    g.fillStyle(0xaaffcc,0.9); g.fillEllipse(20,20,10,14);
+    g.fillStyle(0x00ff88); g.fillTriangle(12,44,18,56,24,44);
+    g.fillStyle(0xccffdd); g.fillTriangle(14,44,20,52,26,44);
+  }},
+  { id:'skin_purple',  name:'パープルシャドウ', icon:'💜', rarity:'rare',   desc:'紫の闇に溶ける機体', draw:(g)=>{
+    g.fillStyle(0x440066); g.fillTriangle(0,44,8,26,20,34); g.fillTriangle(40,44,32,26,20,34);
+    g.fillStyle(0xcc44ff); g.fillTriangle(20,0,0,44,40,44);
+    g.fillStyle(0xeeccff,0.9); g.fillEllipse(20,20,10,14);
+    g.fillStyle(0x9900cc); g.fillTriangle(12,44,18,56,24,44);
+    g.fillStyle(0xff88ff); g.fillTriangle(14,44,20,52,26,44);
+  }},
+  { id:'skin_ice',     name:'アイスウィング',  icon:'❄️', rarity:'rare',    desc:'氷のような冷たい機体', draw:(g)=>{
+    g.fillStyle(0x4488aa); g.fillTriangle(0,44,8,26,20,34); g.fillTriangle(40,44,32,26,20,34);
+    g.fillStyle(0xaaeeff); g.fillTriangle(20,0,0,44,40,44);
+    g.fillStyle(0xffffff,0.95); g.fillEllipse(20,20,10,14);
+    g.fillStyle(0x88ddff); g.fillTriangle(12,44,18,56,24,44);
+    g.fillStyle(0xeeffff); g.fillTriangle(14,44,20,52,26,44);
+  }},
+  { id:'skin_dark',    name:'ダークマター',   icon:'🖤', rarity:'epic',     desc:'暗黒物質で作られた機体', draw:(g)=>{
+    g.fillStyle(0x111111); g.fillTriangle(0,44,8,26,20,34); g.fillTriangle(40,44,32,26,20,34);
+    g.fillStyle(0x333333); g.fillTriangle(20,0,0,44,40,44);
+    g.fillStyle(0x9900ff,0.9); g.fillEllipse(20,20,10,14);
+    g.fillStyle(0x220033); g.fillTriangle(12,44,18,56,24,44);
+    g.fillStyle(0xff00ff); g.fillTriangle(14,44,20,52,26,44);
+  }},
+  { id:'skin_rainbow', name:'レインボー',     icon:'🌈', rarity:'epic',     desc:'七色に輝く伝説の機体', draw:(g)=>{
+    g.fillStyle(0x0044ff); g.fillTriangle(0,44,8,26,20,34); g.fillTriangle(40,44,32,26,20,34);
+    g.fillStyle(0xff44ff); g.fillTriangle(20,0,0,44,40,44);
+    g.fillStyle(0xffff00,0.9); g.fillEllipse(20,20,10,14);
+    g.fillStyle(0xff8800); g.fillTriangle(12,44,18,56,24,44);
+    g.fillStyle(0x00ffcc); g.fillTriangle(14,44,20,52,26,44);
+  }},
+  { id:'skin_pixel',   name:'ピクセルシップ', icon:'👾', rarity:'rare',     desc:'レトロゲーム風の機体',  draw:(g)=>{
+    g.fillStyle(0x22dd22); g.fillRect(14,0,12,10); g.fillRect(8,10,24,10);
+    g.fillRect(4,20,32,10); g.fillRect(0,30,40,14);
+    g.fillStyle(0x00ff44); g.fillRect(6,32,10,10); g.fillRect(24,32,10,10);
+    g.fillStyle(0xffffff); g.fillRect(16,14,8,6);
+  }},
+  { id:'skin_angel',   name:'エンジェルウィング', icon:'👼', rarity:'epic', desc:'天使の翼を持つ機体',   draw:(g)=>{
+    g.fillStyle(0xffeedd); g.fillTriangle(0,44,8,26,20,34); g.fillTriangle(40,44,32,26,20,34);
+    g.fillStyle(0xffffff); g.fillTriangle(20,0,0,44,40,44);
+    g.fillStyle(0xffdd88,0.9); g.fillEllipse(20,20,10,14);
+    g.fillStyle(0xffcc44); g.fillEllipse(20,8,16,8);
+    g.fillStyle(0xffee88); g.fillTriangle(12,44,18,56,24,44);
+    g.fillStyle(0xffffff); g.fillTriangle(14,44,20,52,26,44);
+  }},
+  { id:'skin_dragon',  name:'ドラゴンライダー', icon:'🐉', rarity:'legendary', desc:'伝説の龍の力を宿す', draw:(g)=>{
+    g.fillStyle(0x882200); g.fillTriangle(0,44,8,26,20,34); g.fillTriangle(40,44,32,26,20,34);
+    g.fillStyle(0xff4400); g.fillTriangle(20,0,0,44,40,44);
+    g.fillStyle(0xff0000,0.9); g.fillEllipse(20,20,10,14);
+    g.fillStyle(0xffcc00); g.fillTriangle(2,20,0,44,16,30); g.fillTriangle(38,20,40,44,24,30);
+    g.fillStyle(0xff6600); g.fillTriangle(12,44,18,56,24,44);
+    g.fillStyle(0xffff00); g.fillTriangle(14,44,20,52,26,44);
+  }},
+  { id:'skin_mecha',   name:'メカストライカー', icon:'🤖', rarity:'legendary', desc:'最強の機械兵器',    draw:(g)=>{
+    g.fillStyle(0x334455); g.fillRect(8,0,24,44);
+    g.fillStyle(0x556677); g.fillRect(0,16,40,20);
+    g.fillStyle(0x00ccff); g.fillEllipse(20,20,12,16);
+    g.fillStyle(0xff4400); g.fillRect(0,10,8,8); g.fillRect(32,10,8,8);
+    g.fillStyle(0x00ffff,0.8); g.fillRect(16,38,8,8);
+    g.lineStyle(1,0x00ccff,0.7); g.strokeRect(8,0,24,44);
+  }},
+];
+
+const SKIN_WEIGHTS = [0, 30, 15, 25, 15, 12, 8, 6, 10, 7, 3, 3]; // skin_default は初期解放
+const RARITY_COLORS = { common:'#aaaaaa', rare:'#4488ff', epic:'#ff66ff', legendary:'#ffcc00' };
+
+function getActiveSkin() {
+  const id = localStorage.getItem('activeSkin') || 'skin_default';
+  return SKIN_DEFS.find(s=>s.id===id) || SKIN_DEFS[0];
+}
+function setActiveSkin(id) { localStorage.setItem('activeSkin', id); }
+function hasSkin(id) { return id==='skin_default' || State.hasItem(id); }
+
+// ガチャ景品定義
+const GACHA_PRIZES = [
+  { id:'gacha_coin_s',  name:'コイン小',    icon:'🪙', desc:'+30コイン',    rarity:'common', action:()=>{ State.addCoins(30); } },
+  { id:'gacha_coin_m',  name:'コイン中',    icon:'💰', desc:'+80コイン',    rarity:'rare',   action:()=>{ State.addCoins(80); } },
+  { id:'gacha_coin_l',  name:'コイン大',    icon:'💎', desc:'+200コイン',   rarity:'epic',   action:()=>{ State.addCoins(200); } },
+  { id:'gacha_spread',  name:'散弾カプセル',icon:'🔶', desc:'次回散弾で開始', rarity:'rare',  action:()=>{ State.addItem('gacha_spread'); } },
+  { id:'gacha_beam',    name:'ビームカプセル',icon:'🔷',desc:'次回ビームで開始',rarity:'rare', action:()=>{ State.addItem('gacha_beam'); } },
+  { id:'gacha_barrier', name:'バリアカプセル',icon:'🟢',desc:'次回バリアで開始',rarity:'epic', action:()=>{ State.addItem('gacha_barrier'); } },
+  { id:'gacha_star',    name:'★レアスター', icon:'⭐', desc:'+500コイン',   rarity:'legendary', action:()=>{ State.addCoins(500); } },
+  // スキン枠（common〜legendaryまでランダム）
+  { id:'gacha_skin',    name:'スキンカプセル',icon:'🎨', desc:'ランダムスキン獲得', rarity:'rare', action:()=>{
+    // 未入手のスキンからランダム抽選
+    const locked = SKIN_DEFS.filter(s=>s.id!=='skin_default'&&!hasSkin(s.id));
+    if (!locked.length) { State.addCoins(100); toast('スキンはコンプリート済！ +100コイン'); return; }
+    const weights = locked.map(s=>SKIN_WEIGHTS[SKIN_DEFS.indexOf(s)]);
+    const total = weights.reduce((a,b)=>a+b,0);
+    let r = Math.random()*total;
+    let got = locked[locked.length-1];
+    for(let i=0;i<locked.length;i++){r-=weights[i];if(r<=0){got=locked[i];break;}}
+    State.addItem(got.id);
+    toast(`✨ スキン「${got.name}」を獲得！`);
+  }},
+];
+const GACHA_WEIGHTS = [40, 20, 5, 15, 10, 7, 3, 12];
+
+function rollGacha() {
+  const total = GACHA_WEIGHTS.reduce((a,b)=>a+b,0);
+  let r = Math.random() * total;
+  for (let i=0;i<GACHA_PRIZES.length;i++) {
+    r -= GACHA_WEIGHTS[i];
+    if (r <= 0) return GACHA_PRIZES[i];
+  }
+  return GACHA_PRIZES[0];
+}
+
+// Toast
+function toast(msg, ms=2000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), ms);
+}
+
+// ========================================================
+//  UI 画面管理
+// ========================================================
+// 名前入力モーダル
+function showNameInputModal(score, callback) {
+  const modal = document.getElementById('name-modal');
+  document.getElementById('modal-score-val').textContent = score.toLocaleString() + ' pts';
+  const input = document.getElementById('name-input');
+  input.value = '';
+  modal.classList.add('active');
+  // フォーカス
+  setTimeout(() => input.focus(), 100);
+
+  const ok = document.getElementById('name-modal-ok');
+  const doOk = () => {
+    modal.classList.remove('active');
+    ok.removeEventListener('click', doOk);
+    input.removeEventListener('keydown', onKey);
+    callback(input.value.trim().toUpperCase() || 'PLAYER');
+  };
+  const onKey = (e) => { if (e.key === 'Enter') doOk(); };
+  ok.addEventListener('click', doOk);
+  input.addEventListener('keydown', onKey);
+}
+
+function showScreen(id) {
+  const overlay = document.getElementById('ui-overlay');
+  overlay.classList.add('active');
+  ['home-screen','shop-screen','gacha-screen','clear-screen','ranking-screen','skin-screen'].forEach(s => {
+    document.getElementById(s).style.display = 'none';
+  });
+  document.getElementById(id).style.display = 'flex';
+  updateCoinDisplays();
+}
+
+function hideOverlay() {
+  document.getElementById('ui-overlay').classList.remove('active');
+}
+
+
+function updateCoinDisplays() {
+  ['home-coin','shop-coin','gacha-coin','skin-coin'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = State.coins;
+  });
+  // 所持アイテム
+  const itemEl = document.getElementById('home-items');
+  if (itemEl) {
+    const owned = SHOP_ITEMS.filter(s=>State.hasItem(s.id)).map(s=>s.name);
+    const gOwned = GACHA_PRIZES.filter(g=>State.hasItem(g.id) && g.id.startsWith('gacha_')).map(g=>g.name);
+    const all = [...owned, ...gOwned];
+    itemEl.textContent = all.length ? all.join(' / ') : 'なし';
+  }
+}
+
+// ショップ描画
+function renderShop() {
+  const body = document.getElementById('shop-body');
+  body.innerHTML = '';
+  SHOP_ITEMS.forEach(item => {
+    const owned = State.hasItem(item.id);
+    const canBuy = !owned && State.coins >= item.price;
+    const div = document.createElement('div');
+    div.className = 'shop-item';
+    div.innerHTML = `
+      <div class="shop-icon">${item.icon}</div>
+      <div class="shop-info">
+        <div class="shop-name">${item.name}</div>
+        <div class="shop-desc">${item.desc}</div>
+        ${owned ? '<div class="shop-owned">✓ 購入済み</div>' : ''}
+      </div>
+      <button class="buy-btn${owned?' owned':''}" ${(!canBuy&&!owned)?'disabled':''} data-id="${item.id}">
+        ${owned ? '済み' : '🪙'+item.price}
+      </button>`;
+    if (!owned) {
+      div.querySelector('.buy-btn').addEventListener('click', ()=>{
+        if (State.coins < item.price) { toast('コインが足りません'); return; }
+        State.addCoins(-item.price);
+        State.addItem(item.id);
+        toast(`${item.name} を購入しました！`);
+        renderShop();
+        updateCoinDisplays();
+      });
+    }
+    body.appendChild(div);
+  });
+}
+
+// ガチャ描画
+function renderGachaHistory() {
+  const hist = State.gachaHistory;
+  const area = document.getElementById('gacha-history');
+  const list = document.getElementById('gacha-history-list');
+  if (!hist.length) { area.style.display='none'; return; }
+  area.style.display='block';
+  list.innerHTML = '';
+  const counts = {};
+  hist.forEach(id => { counts[id]=(counts[id]||0)+1; });
+  Object.entries(counts).forEach(([id,cnt])=>{
+    const prize = GACHA_PRIZES.find(p=>p.id===id);
+    if (!prize) return;
+    const badge = document.createElement('div');
+    badge.className = 'gacha-badge';
+    badge.textContent = prize.icon + prize.name + (cnt>1?` x${cnt}`:'');
+    list.appendChild(badge);
+  });
+}
+
+// ランキング描画（上位5位・名前表示）
+function renderRanking() {
+  const body = document.getElementById('ranking-body');
+  const entries = State.ranking.slice(0, 5);
+  if (!entries.length) {
+    body.innerHTML = '<div class="rank-empty">まだ記録がありません<br>ゲームをクリアしよう！</div>';
+    return;
+  }
+  body.innerHTML = '';
+  entries.forEach((e, i) => {
+    const numClass = i===0?'gold':i===1?'silver':i===2?'bronze':'normal';
+    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;
+    const bonusTags = [
+      e.lifeBonus  ? `<span class="bonus-tag" style="background:rgba(255,200,0,0.15);color:#ffcc44;border:1px solid #ffcc4444">❤️ライフ +${e.lifeBonus.toLocaleString()}</span>` : '',
+      e.timeBonus  ? `<span class="bonus-tag" style="background:rgba(0,200,255,0.15);color:#00ccff;border:1px solid #00ccff44">⏱${e.bossTime||0}s +${e.timeBonus.toLocaleString()}</span>` : '',
+      e.killBonus  ? `<span class="bonus-tag" style="background:rgba(255,100,0,0.15);color:#ff8844;border:1px solid #ff884444">💥${e.killCount||0}機 +${e.killBonus.toLocaleString()}</span>` : '',
+    ].filter(Boolean).join('');
+    let dateStr = '';
+    try {
+      const d = new Date(e.date);
+      dateStr = `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+    } catch(_) {}
+    const name = e.name || 'PLAYER';
+    const row = document.createElement('div');
+    row.className = 'rank-row';
+    row.innerHTML = `
+      <div class="rank-num ${numClass}">${medal}</div>
+      <div class="rank-info">
+        <div class="rank-score" style="display:flex;align-items:baseline;gap:10px">
+          <span style="font-size:15px;color:#ff88ff;font-weight:bold">${name}</span>
+          <span>${e.score.toLocaleString()}</span>
+        </div>
+        <div class="rank-detail">基本 ${e.baseScore.toLocaleString()} &nbsp;|&nbsp; ${dateStr}</div>
+        ${bonusTags ? `<div class="rank-bonus">${bonusTags}</div>` : ''}
+      </div>`;
+    body.appendChild(row);
+  });
+}
+
+
+
+// スキンカタログ描画
+function renderSkin() {
+  const body = document.getElementById('skin-body');
+  body.innerHTML = '';
+  const activeSkinId = localStorage.getItem('activeSkin') || 'skin_default';
+  const grid = document.createElement('div');
+  grid.className = 'skin-grid';
+
+  SKIN_DEFS.forEach(skin => {
+    const owned = hasSkin(skin.id);
+    const isActive = skin.id === activeSkinId;
+    const card = document.createElement('div');
+    card.className = 'skin-card' + (isActive?' active-skin':'') + (!owned?' locked':'');
+
+    const rarityColor = RARITY_COLORS[skin.rarity] || '#aaa';
+    const rarityLabel = {common:'COMMON',rare:'RARE',epic:'EPIC',legendary:'★LEGEND'}[skin.rarity]||skin.rarity.toUpperCase();
+
+    if (owned) {
+      // プレビューをcanvasで描画
+      const cvs = document.createElement('canvas');
+      cvs.width = 40; cvs.height = 56;
+      cvs.style.cssText = 'image-rendering:pixelated;width:40px;height:56px;';
+      card.innerHTML = `
+        <div class="skin-preview"></div>
+        ${isActive?'<div class="skin-active-badge">使用中</div>':''}
+        <div class="skin-name">${skin.name}</div>
+        <div class="skin-rarity" style="color:${rarityColor}">${rarityLabel}</div>
+        <div class="skin-desc">${skin.desc}</div>
+        ${!isActive?`<div style="margin-top:4px;padding:4px 10px;border-radius:6px;border:1px solid #ff88ff;color:#ff88ff;font-size:11px;font-family:monospace;cursor:pointer" data-skinid="${skin.id}">選択</div>`:''}
+      `;
+      card.querySelector('.skin-preview').appendChild(cvs);
+      // Phaser未起動の場合は絵文字フォールバック
+      try {
+        const ctx = cvs.getContext('2d');
+        ctx.clearRect(0,0,40,56);
+        ctx.font='28px serif'; ctx.textAlign='center'; ctx.fillText(skin.icon,20,36);
+      } catch(_){}
+      if (!isActive) {
+        const btn = card.querySelector('[data-skinid]');
+        if (btn) btn.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          setActiveSkin(skin.id);
+          toast(`スキン「${skin.name}」に変更しました`);
+          renderSkin();
+        });
+      }
+    } else {
+      card.innerHTML = `
+        <div class="skin-locked-icon">❓</div>
+        <div class="skin-name">？？？？</div>
+        <div class="skin-rarity" style="color:${rarityColor}">${rarityLabel}</div>
+        <div class="skin-desc">ガチャで入手しよう</div>
+      `;
+    }
+    grid.appendChild(card);
+  });
+  body.appendChild(grid);
+}
+
+// パワーアップ定義
+const POWER_DEFS = {
+  SPREAD:  { key:'item_spread',  color:0xffaa00, label:'散弾',  duration:10000 },
+  BEAM:    { key:'item_beam',    color:0x00ffff, label:'ビーム', duration:8000  },
+  BARRIER: { key:'item_barrier', color:0x44ff88, label:'バリア', duration:12000 },
+};
+
+// ===== テクスチャ生成 =====
+function makeTextures(scene) {
+  // アクティブスキンに応じてプレイヤーテクスチャを毎回生成
+  {
+    const skin = getActiveSkin();
+    if (scene.textures.exists('player')) scene.textures.remove('player');
+    const g = scene.make.graphics({ add:false });
+    skin.draw(g);
+    g.generateTexture('player',40,56); g.destroy();
+  }
+  // 敵A 雑魚（小型赤）
+  if (!scene.textures.exists('enemy_a')) {
+    const g = scene.make.graphics({ add:false });
+    g.fillStyle(0xaa0022); g.fillTriangle(0,0,36,0,18,34);
+    g.fillStyle(0xff2244); g.fillRect(4,4,28,20);
+    g.fillStyle(0xff8800); g.fillEllipse(18,12,12,14);
+    g.generateTexture('enemy_a',36,34); g.destroy();
+  }
+  // 敵B 中型（紫）
+  if (!scene.textures.exists('enemy_b')) {
+    const g = scene.make.graphics({ add:false });
+    g.fillStyle(0x880099); g.fillRect(0,8,40,20); g.fillRect(8,0,24,36);
+    g.fillStyle(0xcc44ff); g.fillEllipse(20,18,20,20);
+    g.fillStyle(0xffffff,0.5); g.fillEllipse(20,14,8,8);
+    g.generateTexture('enemy_b',40,36); g.destroy();
+  }
+  // 敵C 強敵（金赤）hp=5
+  if (!scene.textures.exists('enemy_c')) {
+    const g = scene.make.graphics({ add:false });
+    g.fillStyle(0x661100); g.fillRect(4,0,40,44);
+    g.fillStyle(0xff4400); g.fillTriangle(0,44,24,0,48,44);
+    g.fillStyle(0xffcc00); g.fillEllipse(24,18,18,18);
+    g.fillStyle(0xff2200); g.fillEllipse(24,18,10,10);
+    g.lineStyle(2,0xffaa00,1); g.strokeRect(4,0,40,44);
+    g.generateTexture('enemy_c',48,44); g.destroy();
+  }
+  // 敵D 斜め移動（緑）
+  if (!scene.textures.exists('enemy_d')) {
+    const g = scene.make.graphics({ add:false });
+    g.fillStyle(0x00aa44); g.fillRect(4,0,28,38);
+    g.fillStyle(0x00ff88); g.fillTriangle(2,0,34,0,18,38);
+    g.fillStyle(0xffffff,0.6); g.fillEllipse(18,14,10,10);
+    g.generateTexture('enemy_d',36,38); g.destroy();
+  }
+  // 敵E 回転突撃（オレンジ）
+  if (!scene.textures.exists('enemy_e')) {
+    const g = scene.make.graphics({ add:false });
+    g.fillStyle(0xff6600); g.fillCircle(18,18,18);
+    g.fillStyle(0xffff00); g.fillCircle(18,18,10);
+    g.fillStyle(0xff2200); g.fillCircle(18,18,5);
+    g.lineStyle(3,0xffaa00,0.8); g.strokeCircle(18,18,15);
+    g.generateTexture('enemy_e',36,36); g.destroy();
+  }
+  // 敵F 超高速突撃（シアン）
+  if (!scene.textures.exists('enemy_f')) {
+    const g = scene.make.graphics({ add:false });
+    g.fillStyle(0x0066aa); g.fillTriangle(14,0,28,36,0,36);
+    g.fillStyle(0x00ccff); g.fillTriangle(14,4,24,32,4,32);
+    g.fillStyle(0xffffff,0.9); g.fillEllipse(14,16,6,8);
+    g.generateTexture('enemy_f',28,36); g.destroy();
+  }
+  // ボス
+  if (!scene.textures.exists('boss')) {
+    const g = scene.make.graphics({ add:false });
+    // 本体
+    g.fillStyle(0x220033); g.fillEllipse(60,50,120,80);
+    // 装甲板
+    g.fillStyle(0x6600aa); g.fillRect(10,30,100,40);
+    g.fillStyle(0x9900ff); g.fillRect(20,20,80,50);
+    // コア
+    g.fillStyle(0xff00ff); g.fillCircle(60,44,22);
+    g.fillStyle(0xffffff,0.8); g.fillCircle(60,38,10);
+    // 砲台
+    g.fillStyle(0x440066); g.fillRect(0,44,20,16); g.fillRect(100,44,20,16);
+    // 目
+    g.fillStyle(0xff0000); g.fillEllipse(38,34,12,8); g.fillEllipse(82,34,12,8);
+    g.lineStyle(2,0xff00ff,0.8); g.strokeEllipse(60,44,44,44);
+    g.generateTexture('boss',120,100); g.destroy();
+  }
+  // 弾
+  if (!scene.textures.exists('bullet')) {
+    const g = scene.make.graphics({ add:false });
+    g.fillStyle(0xffee00); g.fillEllipse(4,8,8,16);
+    g.fillStyle(0xffffff,0.9); g.fillEllipse(4,5,4,6);
+    g.generateTexture('bullet',8,16); g.destroy();
+  }
+  if (!scene.textures.exists('beam')) {
+    const g = scene.make.graphics({ add:false });
+    g.fillStyle(0x00ffff,0.9); g.fillRect(0,0,10,36);
+    g.fillStyle(0xffffff,0.6); g.fillRect(3,0,4,36);
+    g.generateTexture('beam',10,36); g.destroy();
+  }
+  if (!scene.textures.exists('ebullet')) {
+    const g = scene.make.graphics({ add:false });
+    g.fillStyle(0xff3388); g.fillEllipse(5,10,10,20);
+    g.generateTexture('ebullet',10,20); g.destroy();
+  }
+  if (!scene.textures.exists('boss_bullet')) {
+    const g = scene.make.graphics({ add:false });
+    g.fillStyle(0xff00ff); g.fillCircle(8,8,8);
+    g.fillStyle(0xffffff,0.5); g.fillCircle(8,6,4);
+    g.generateTexture('boss_bullet',16,16); g.destroy();
+  }
+  // アイテム
+  if (!scene.textures.exists('item_spread')) {
+    const g = scene.make.graphics({ add:false });
+    g.fillStyle(0xffaa00); g.fillCircle(14,14,14);
+    g.fillStyle(0x000000,0.3); g.fillCircle(14,14,9);
+    g.fillStyle(0xffdd88);
+    for (let i=0;i<5;i++){
+      const a=(-Math.PI/2)+(i-2)*0.38;
+      g.fillRect(14+Math.cos(a)*4,14+Math.sin(a)*4,2,8);
+    }
+    g.generateTexture('item_spread',28,28); g.destroy();
+  }
+  if (!scene.textures.exists('item_beam')) {
+    const g = scene.make.graphics({ add:false });
+    g.fillStyle(0x00ccff); g.fillCircle(14,14,14);
+    g.fillStyle(0x000000,0.3); g.fillCircle(14,14,9);
+    g.fillStyle(0xffffff); g.fillRect(12,5,4,18);
+    g.generateTexture('item_beam',28,28); g.destroy();
+  }
+  if (!scene.textures.exists('item_barrier')) {
+    const g = scene.make.graphics({ add:false });
+    g.fillStyle(0x44ff88); g.fillCircle(14,14,14);
+    g.fillStyle(0x000000,0.3); g.fillCircle(14,14,9);
+    g.lineStyle(3,0xffffff,0.9); g.strokeCircle(14,14,7);
+    g.generateTexture('item_barrier',28,28); g.destroy();
+  }
+}
+
+// ========================================================
+//  ゲームシーン
+// ========================================================
+class GameScene extends Phaser.Scene {
+  constructor() { super('Game'); }
+
+  create() {
+    makeTextures(this);
+
+    // 星
+    this.stars = [];
+    for (let i=0;i<100;i++) {
+      const sz=Phaser.Math.Between(1,3);
+      const g=this.add.graphics();
+      g.fillStyle(0xffffff,Phaser.Math.FloatBetween(0.2,1.0));
+      g.fillRect(0,0,sz,sz);
+      g.x=Phaser.Math.Between(0,GW); g.y=Phaser.Math.Between(0,GH);
+      this.stars.push({obj:g,spd:sz*0.7+0.3});
+    }
+
+    // ショップ効果を反映
+    const hasShopShield  = State.hasItem('shield');
+    const hasShopPower   = State.hasItem('power');
+    const hasShopSpeed   = State.hasItem('speed');
+    const hasShopLives   = State.hasItem('lives');
+    this.bulletDmg   = hasShopPower ? 2 : 1;
+    this.moveSpeed   = hasShopSpeed ? 365 : 280;
+    const startLives = hasShopLives ? 9 : 8;
+
+    // 自機
+    this.player = this.physics.add.sprite(GW/2,GH-100,'player');
+    this.player.setCollideWorldBounds(true).setDepth(10);
+
+    // グループ
+    this.bullets  = this.physics.add.group();
+    this.ebullets = this.physics.add.group();
+    this.enemies  = this.physics.add.group();
+    this.items    = this.physics.add.group();
+
+    // バリア
+    this.barrierGfx = this.add.graphics().setDepth(11);
+
+    // パワーアップ（独立タイマー）
+    this.powers = { SPREAD:0, BEAM:0, BARRIER:0 };
+
+    // ガチャカプセル適用（初期パワーアップ）
+    if (State.hasItem('gacha_spread'))  { this.powers.SPREAD  = 15000; State.items.splice(State.items.indexOf('gacha_spread'),1);  State.save(); }
+    if (State.hasItem('gacha_beam'))    { this.powers.BEAM    = 12000; State.items.splice(State.items.indexOf('gacha_beam'),1);    State.save(); }
+    if (State.hasItem('gacha_barrier')) { this.powers.BARRIER = 18000; State.items.splice(State.items.indexOf('gacha_barrier'),1); State.save(); }
+
+    // バリア持続補正
+    if (hasShopShield) Object.keys(this.powers).forEach(k=>{ if(this.powers[k]>0) this.powers[k]*=1.5; });
+
+    // UI
+    this.score = 0;
+    this.lives = startLives;
+    this.startLives = startLives;
+
+    this.scoreText = this.add.text(12,12,'SCORE  0',{
+      fontSize:'16px',fill:'#00ffff',fontFamily:'Courier New',
+      fontStyle:'bold',stroke:'#003333',strokeThickness:3
+    }).setDepth(20);
+
+    this.livesText = this.add.text(GW-12,12,'',{
+      fontSize:'16px',fill:'#ff4466',fontFamily:'Courier New',
+      stroke:'#330011',strokeThickness:3
+    }).setOrigin(1,0).setDepth(20);
+    this.updateLivesUI();
+
+    // パワーアップ表示ラベル
+    this.powerLabels = {};
+    let yOff = GH - 14;
+    Object.keys(POWER_DEFS).reverse().forEach(key=>{
+      const def=POWER_DEFS[key];
+      const hex='#'+def.color.toString(16).padStart(6,'0');
+      const t=this.add.text(GW/2,yOff,'',{
+        fontSize:'12px',fill:hex,fontFamily:'Courier New',
+        fontStyle:'bold',stroke:'#000000',strokeThickness:3
+      }).setOrigin(0.5,1).setDepth(20).setAlpha(0);
+      this.powerLabels[key]=t;
+      yOff-=17;
+    });
+
+    // ボスHP バー（非表示）
+    this.bossBarBg   = this.add.graphics().setDepth(22);
+    this.bossBarFill = this.add.graphics().setDepth(23);
+    this.bossLabel   = this.add.text(GW/2,GH-54,'',{
+      fontSize:'12px',fill:'#ff00ff',fontFamily:'Courier New',
+      fontStyle:'bold',stroke:'#000',strokeThickness:3
+    }).setOrigin(0.5,1).setDepth(24).setAlpha(0);
+
+    // GameOver UI参照
+    this.gameOverOverlay = null;
+    this.gameOverTitle = null;
+    this.gameOverScore = null;
+    this.gameOverRetryBtn = null;
+    this.gameOverHomeBtn = null;
+    this.damageLock = false;
+    this.lastDamageFrame = -1;
+
+    // 当たり判定
+    this.physics.add.overlap(this.bullets, this.enemies,  this.onHitEnemy,       null,this);
+    this.physics.add.overlap(this.ebullets,this.player,   this.onEnemyBulletHit, null,this);
+    this.physics.add.overlap(this.player,  this.enemies,  this.onPlayerTouchEnemy,null,this);
+    this.physics.add.overlap(this.player,  this.items,    this.onPickupItem,      null,this);
+
+    // タイマー
+    this.fireTimer  = 0;
+    this.spawnTimer = 0;
+    this.spawnDelay = 1000;  // 初期1秒間隔
+    this.wave       = 0;
+    this.invincible = false;
+    this.dead       = false;
+
+    // ボーナス追跡
+    this.tookDamage   = false; // ダメージを受けたか
+    this.shotsFired   = 0;     // 発射弾数
+    this.killCount    = 0;     // 敵破壊数
+    this.killScore    = 0;     // 敵破壊スコア合計
+    this.startLives   = 0;     // 開始ライフ（後で上書き）
+
+    // ボス状態
+    this.boss      = null;
+    this.bossPhase = false;
+    this.bossHp    = 0;
+    this.bossMaxHp = 0;
+    this.bossFired = false;
+    this.bossShootCd = 0;
+    this.bossAngle   = 0;
+    this.bossDefeating = false;
+
+    // Wave20でボス登場（以前は40で遅すぎた）
+    this.BOSS_WAVE = 35;
+
+    // タッチ
+    this.isTouching=false; this.touchX=GW/2; this.touchY=GH-100;
+    this.offsetX=0; this.offsetY=0;
+    this.input.on('pointerdown',(p)=>{
+      this.isTouching=true;
+      const gx=p.x/this.sys.scale.displayScale.x;
+      const gy=p.y/this.sys.scale.displayScale.y;
+      this.offsetX=this.player.x-gx; this.offsetY=this.player.y-gy;
+    });
+    this.input.on('pointermove',(p)=>{
+      if(!this.isTouching)return;
+      const gx=p.x/this.sys.scale.displayScale.x;
+      const gy=p.y/this.sys.scale.displayScale.y;
+      this.touchX=Phaser.Math.Clamp(gx+this.offsetX,22,GW-22);
+      this.touchY=Phaser.Math.Clamp(gy+this.offsetY,30,GH-30);
+    });
+    this.input.on('pointerup',()=>{ this.isTouching=false; });
+    this.input.on('pointerupoutside',()=>{ this.isTouching=false; });
+
+    this.cursors  = this.input.keyboard.createCursorKeys();
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+    // ヒント
+    const hint=this.add.text(GW/2,GH-56,'ドラッグして移動・自動射撃',{
+      fontSize:'12px',fill:'#667',fontFamily:'sans-serif'
+    }).setOrigin(0.5).setDepth(20);
+    this.time.delayedCall(3000,()=>{
+      this.tweens.add({targets:hint,alpha:0,duration:800,onComplete:()=>hint.destroy()});
+    });
+
+    this.events.once('shutdown', this.shutdown, this);
+    this.events.once('destroy', this.shutdown, this);
+
+    // 初期パワーアップがあれば表示
+    this.updatePowerUI();
+    if (this.powers.BARRIER>0) this.drawBarrier();
+  }
+
+  // ===== helpers =====
+  hasSpread()  { return this.powers.SPREAD  > 0; }
+  hasBeam()    { return this.powers.BEAM    > 0; }
+  hasBarrier() { return this.powers.BARRIER > 0; }
+  updateLivesUI() {
+    this.livesText.setText('♥ '.repeat(this.lives).trim());
+  }
+
+  // ===== 敵スポーン =====
+  spawnEnemy() {
+    if (this.bossPhase) return;
+    const x = Phaser.Math.Between(24,GW-24);
+    const w = this.wave;
+
+    // Wave進行で敵種選択
+    let type;
+    const r = Math.random();
+    if (w > 30)      type = r<0.18?'c': r<0.36?'f': r<0.54?'e': r<0.70?'d': r<0.85?'b':'a';
+    else if (w > 20) type = r<0.15?'c': r<0.35?'f': r<0.50?'e': r<0.65?'d': r<0.82?'b':'a';
+    else if (w > 12) type = r<0.10?'c': r<0.30?'e': r<0.50?'d': r<0.72?'b':'a';
+    else if (w > 6)  type = r<0.30?'d': r<0.55?'b':'a';
+    else             type = r<0.20?'b':'a';
+
+    this.spawnEnemyType(type, x);
+  }
+
+  spawnEnemyType(type, x) {
+    const configs = {
+      a: { tex:'enemy_a', hp:1,  dropRate:0.05, score:100, shoots:false, shootInterval:0    },
+      b: { tex:'enemy_b', hp:2,  dropRate:0.10, score:200, shoots:true,  shootInterval:1800 },
+      c: { tex:'enemy_c', hp:6,  dropRate:0.22, score:400, shoots:true,  shootInterval:1200 },
+      d: { tex:'enemy_d', hp:2,  dropRate:0.08, score:180, shoots:false, shootInterval:0    },
+      e: { tex:'enemy_e', hp:4,  dropRate:0.15, score:300, shoots:true,  shootInterval:1500 },
+      f: { tex:'enemy_f', hp:2,  dropRate:0.06, score:150, shoots:false, shootInterval:0    },
+    };
+    const cfg = configs[type];
+    const e = this.enemies.create(x, -40, cfg.tex);
+    e.enemyType     = type;
+    e.hp            = cfg.hp;
+    e.maxHp         = cfg.hp;
+    e.dropRate      = cfg.dropRate;
+    e.score         = cfg.score;
+    e.shoots        = cfg.shoots;
+    e.shootCd       = Phaser.Math.Between(800, cfg.shootInterval + 1000);
+    e.shootInterval = cfg.shootInterval;
+    e.setDepth(5);
+    e._halfW = Math.floor((e.width || 36) / 2);
+
+    // パターン選択
+    const pattern = this._pickPattern(type);
+    e._pattern = pattern;
+
+    if (pattern === 'straight') {
+      // 真っ直ぐ降下（速め）
+      e.setVelocityY(Phaser.Math.Between(140, 210));
+      e.setVelocityX(0);
+    } else if (pattern === 'bounce') {
+      // 斜め+壁バウンス
+      e.setVelocityY(Phaser.Math.Between(90, 140));
+      e.setVelocityX(Phaser.Math.Between(70, 130) * (Math.random()<0.5?1:-1));
+    } else if (pattern === 'zigzag') {
+      // ジグザグ（一定間隔でX速度反転）
+      e.setVelocityY(Phaser.Math.Between(80, 120));
+      e._zigzagVx    = Phaser.Math.Between(150, 220) * (Math.random()<0.5?1:-1);
+      e._zigzagTimer = Phaser.Math.Between(350, 650);
+      e.setVelocityX(e._zigzagVx);
+    } else if (pattern === 'spiral') {
+      // 螺旋：Y一定 + X = sin(angle)で振れ幅を徐々に拡大
+      e._spiralAngle = Math.random() * Math.PI * 2;
+      e._spiralDir   = Math.random()<0.5 ? 1 : -1;
+      e._spiralR     = 30;      // 初期振れ幅
+      e._spiralSpdY  = Phaser.Math.Between(55, 85);
+      e.setVelocityY(e._spiralSpdY);
+    } else if (pattern === 'dash') {
+      // 超高速突撃
+      e.setVelocityY(Phaser.Math.Between(420, 560));
+      e.setVelocityX(Phaser.Math.Between(60, 110) * (Math.random()<0.5?1:-1));
+    }
+  }
+
+  _pickPattern(type) {
+    const w = this.wave;
+    if (type === 'f') return 'dash';
+    const pools = {
+      a: w < 8  ? ['straight','bounce'] :
+         w < 18 ? ['straight','bounce','zigzag'] :
+                  ['straight','bounce','zigzag','spiral'],
+      b: ['bounce','zigzag','spiral'],
+      c: ['bounce','zigzag','spiral'],
+      d: ['bounce','zigzag','straight'],
+      e: ['spiral','zigzag','bounce'],
+    };
+    const arr = pools[type] || ['bounce'];
+    return arr[Phaser.Math.Between(0, arr.length-1)];
+  }
+
+  // ===== ボス移動速度（HP連動） =====
+  bossMoveSpeed() {
+    const ratio = this.bossHp / this.bossMaxHp;
+    // HP減るほど速くなる: 100→170→220→280
+    if (ratio > 0.75) return 110;
+    if (ratio > 0.50) return 160;
+    if (ratio > 0.25) return 210;
+    return 270;
+  }
+
+  // ===== ボス登場 =====
+  spawnBoss() {
+    // 警告テキスト中も敵スポーンは止める
+    this.spawnTimer = 999999;
+
+    const warn = this.add.text(GW/2, GH/2, '⚠ BOSS INCOMING ⚠', {
+      fontSize:'22px', fill:'#ff00ff', fontFamily:'Courier New',
+      fontStyle:'bold', stroke:'#000', strokeThickness:5
+    }).setOrigin(0.5).setDepth(30).setAlpha(0);
+
+    this.tweens.add({
+      targets: warn, alpha: 1, duration: 350, yoyo: true, repeat: 6,
+      onComplete: () => {
+        warn.destroy();
+        this.enemies.clear(true, true);
+        this.items.clear(true, true);
+        this.doSpawnBoss();
+      }
+    });
+  }
+
+  doSpawnBoss() {
+    this.bossPhase = true;   // ← ここで true にする（ボス生成後）
+    BGM.playBoss();
+    this.bossMaxHp = 300;
+    this.bossHp    = 300;
+
+    // ボスはグループで管理（overlapをグループvsグループで行うため）
+    this.bossGroup = this.physics.add.group();
+    this.boss = this.physics.add.sprite(GW/2, -80, 'boss');
+    this.boss.setActive(true).setVisible(true);
+    this.boss.setDepth(8);
+    this.boss.body.reset(GW/2, -80);  // physicsボディを確実にリセット
+    this.bossGroup.add(this.boss);
+
+    // バウンス境界（画面上半分）
+    this.boss._BT = 55;
+    this.boss._BB = GH/2 - 50;
+    this.boss._BL = 62;
+    this.boss._BR = GW - 62;
+
+    // overlap はグループvsグループで登録（スプライト直接渡しの誤動作を回避）
+    this.physics.add.overlap(this.bullets, this.bossGroup, this.onHitBoss, null, this);
+
+    // 入場速度
+    this.boss.setVelocity(
+      Phaser.Math.Between(100,150) * (Math.random()<0.5?1:-1),
+      380
+    );
+
+    this.drawBossBar();
+    this.bossLabel.setAlpha(1);
+    this.bossLabel.setText('★ BOSS ★');
+    this.bossShootCd  = 800;
+    this.bossItemCd   = 5000;
+    this.bossEntered  = false;
+    this.bossPhaseNum = 1;
+    this.bossStartTime = this.time.now;  // ボス戦開始時刻
+  }
+
+  drawBossBar() {
+    const bw=260, bh=14, bx=(GW-bw)/2, by=GH-42;
+    this.bossBarBg.clear();
+    this.bossBarBg.fillStyle(0x220022,1);
+    this.bossBarBg.fillRect(bx,by,bw,bh);
+    this.bossBarBg.lineStyle(1,0x660066,1);
+    this.bossBarBg.strokeRect(bx,by,bw,bh);
+
+    this.bossBarFill.clear();
+    const ratio = Math.max(0, this.bossHp / this.bossMaxHp);
+    const fillW = bw * ratio;
+    // 残量に応じて色変化
+    const col = ratio > 0.5 ? 0xff00ff : ratio > 0.25 ? 0xff6600 : 0xff0000;
+    this.bossBarFill.fillStyle(col,1);
+    this.bossBarFill.fillRect(bx,by,fillW,bh);
+  }
+
+  // ===== ボス弾発射（HP連動4フェーズ）=====
+  fireBossPattern() {
+    if (!this.boss || !this.boss.active) return;
+    const bx = this.boss.x, by = this.boss.y;
+    const ratio = this.bossHp / this.bossMaxHp;
+    const ang = Math.atan2(this.player.y - by, this.player.x - bx); // 自機方向
+
+    const shoot = (ox, oy, vx, vy) => {
+      const b = this.ebullets.create(bx+ox, by+oy, 'boss_bullet');
+      b.setVelocity(vx, vy).setDepth(8);
+    };
+
+    if (ratio > 0.75) {
+      // ── フェーズ1: 扇形3発 + 自機狙い1発 ──
+      for (let i=-1;i<=1;i++) {
+        const r = Phaser.Math.DegToRad(90+i*30);
+        shoot(0,50, Math.cos(r)*200, Math.sin(r)*200);
+      }
+      shoot(0,50, Math.cos(ang)*230, Math.sin(ang)*230);
+
+    } else if (ratio > 0.50) {
+      // ── フェーズ2: 5方向 + 自機狙い2連射 ──
+      for (let i=0;i<5;i++) {
+        const r = (i/5)*Math.PI*2;
+        shoot(0,0, Math.cos(r)*220, Math.sin(r)*220);
+      }
+      for (let i=0;i<2;i++) {
+        this.time.delayedCall(i*150, ()=>{
+          if (!this.boss||!this.boss.active) return;
+          const a2 = Math.atan2(this.player.y-this.boss.y, this.player.x-this.boss.x);
+          const b = this.ebullets.create(this.boss.x, this.boss.y+50, 'boss_bullet');
+          b.setVelocity(Math.cos(a2)*260, Math.sin(a2)*260).setDepth(8);
+        });
+      }
+
+    } else if (ratio > 0.25) {
+      // ── フェーズ3: 8方向 + 自機狙い扇形3発(遅延) ──
+      for (let i=0;i<8;i++) {
+        const r = (i/8)*Math.PI*2;
+        shoot(0,0, Math.cos(r)*240, Math.sin(r)*240);
+      }
+      for (let i=0;i<3;i++) {
+        this.time.delayedCall(i*120, ()=>{
+          if (!this.boss||!this.boss.active) return;
+          const a2 = Math.atan2(this.player.y-this.boss.y, this.player.x-this.boss.x);
+          const spread = (i-1)*0.22;
+          const b = this.ebullets.create(this.boss.x, this.boss.y+50, 'boss_bullet');
+          b.setVelocity(Math.cos(a2+spread)*270, Math.sin(a2+spread)*270).setDepth(8);
+        });
+      }
+      // 横スプレー（片側のみ）
+      [-1,1].forEach(d=>{ shoot(d*55,0, d*240, 80); });
+
+    } else {
+      // ── フェーズ4(瀕死): 10方向 + 高速自機狙い3発 + 横弾 ──
+      for (let i=0;i<10;i++) {
+        const r = (i/10)*Math.PI*2;
+        shoot(0,0, Math.cos(r)*270, Math.sin(r)*270);
+      }
+      for (let i=0;i<3;i++) {
+        this.time.delayedCall(i*100, ()=>{
+          if (!this.boss||!this.boss.active) return;
+          const a2 = Math.atan2(this.player.y-this.boss.y, this.player.x-this.boss.x);
+          const spread = (i-1)*0.18;
+          const b = this.ebullets.create(this.boss.x, this.boss.y+50, 'boss_bullet');
+          b.setVelocity(Math.cos(a2+spread)*300, Math.sin(a2+spread)*300).setDepth(8);
+        });
+      }
+      // 左右発射（2方向のみ）
+      [-1,1].forEach(d=>{ shoot(d*45,0, d*240, 180); });
+    }
+  }
+
+  // ===== ボスアイテム吐き出し =====
+  bossDropItem() {
+    if (!this.boss || !this.boss.active) return;
+    const types = Object.keys(POWER_DEFS);
+    const type  = types[Phaser.Math.Between(0, types.length-1)];
+    const def   = POWER_DEFS[type];
+    const item  = this.items.create(this.boss.x, this.boss.y+30, def.key);
+    item.setVelocityY(100).setDepth(7);
+    item.itemType = type;
+    this.tweens.add({targets:item, alpha:0.3, duration:380, yoyo:true, repeat:-1});
+    // 光るエフェクト
+    this.explode(this.boss.x, this.boss.y+30, POWER_DEFS[type].color, 6);
+  }
+
+  // ===== アイテムドロップ =====
+  tryDropItem(x, y, dropRate) {
+    if (Math.random() > dropRate) return;
+    const types = Object.keys(POWER_DEFS);
+    const type  = types[Phaser.Math.Between(0,types.length-1)];
+    const def   = POWER_DEFS[type];
+    const item  = this.items.create(x,y,def.key);
+    item.setVelocityY(80).setDepth(7);
+    item.itemType = type;
+    this.tweens.add({targets:item, alpha:0.3, duration:380, yoyo:true, repeat:-1});
+  }
+
+  // ===== 射撃 =====
+  fireBullet() {
+    this.shotsFired++;
+    const px=this.player.x, py=this.player.y-32;
+    const useBeam=this.hasBeam(), useSpread=this.hasSpread();
+
+    if (useBeam && useSpread) {
+      [-40,-20,0,20,40].forEach(deg=>{
+        const rad=Phaser.Math.DegToRad(deg-90);
+        const b=this.bullets.create(px,py,'beam');
+        b.setVelocity(Math.cos(rad)*700,Math.sin(rad)*700);
+        b.setDepth(8); b.isBeam=true; b.dmg=this.bulletDmg;
+      });
+    } else if (useBeam) {
+      [-6,6].forEach(ox=>{
+        const b=this.bullets.create(px+ox,py,'beam');
+        b.setVelocityY(-740).setDepth(8); b.isBeam=true; b.dmg=this.bulletDmg;
+      });
+    } else if (useSpread) {
+      [-40,-20,0,20,40].forEach(deg=>{
+        const rad=Phaser.Math.DegToRad(deg-90);
+        const b=this.bullets.create(px,py,'bullet');
+        b.setVelocity(Math.cos(rad)*650,Math.sin(rad)*650);
+        b.setDepth(8); b.dmg=this.bulletDmg;
+      });
+    } else {
+      const b=this.bullets.create(px,py,'bullet');
+      b.setVelocityY(-670).setDepth(8); b.dmg=this.bulletDmg;
+    }
+  }
+
+  fireEnemyBullet(e) {
+    if (!e.active) return;
+    const b=this.ebullets.create(e.x,e.y+16,'ebullet');
+    // 自機方向を狙う
+    const dx=this.player.x-e.x, dy=this.player.y-e.y;
+    const len=Math.sqrt(dx*dx+dy*dy)||1;
+    const spd=210;
+    b.setVelocity((dx/len)*spd,(dy/len)*spd).setDepth(8);
+  }
+
+  // ===== 当たり判定 =====
+  onEnemyBulletHit(obj1, obj2) {
+    const frame = this.sys.game.loop.frame;
+    if (this.lastDamageFrame === frame) {
+      return;
+    }
+
+    let bullet = obj1;
+    let player = obj2;
+    if (obj1 === this.player) {
+      player = obj1;
+      bullet = obj2;
+    }
+
+    if (!bullet || bullet === this.player) {
+      return;
+    }
+    if (!bullet.active) return;
+
+    // 先に敵弾だけ無効化する
+    if (bullet.body && bullet.body.enable) {
+      bullet.disableBody(true, true);
+    } else {
+      bullet.setActive(false).setVisible(false);
+    }
+
+    // 同フレーム多重被弾防止
+    if (this.dead) {
+      return;
+    }
+    if (this.invincible || this.damageLock) {
+      return;
+    }
+
+    this.lastDamageFrame = frame;
+    this.damageLock = true;
+    this.damagePlayer();
+  }
+
+  onPlayerTouchEnemy(player, enemy) {
+    const frame = this.sys.game.loop.frame;
+    if (this.lastDamageFrame === frame) return;
+    if (this.dead || this.invincible || this.damageLock) return;
+    if (!enemy.active) return;
+    this.lastDamageFrame = frame;
+    this.damageLock = true;
+    enemy.destroy();
+    this.damagePlayer();
+  }
+
+  onHitEnemy(bullet, enemy) {
+    if (!bullet.active || !enemy.active) return;
+    this.explode(enemy.x,enemy.y,0xff6600,6);
+    if (!bullet.isBeam) bullet.destroy();
+    const dmg = bullet.dmg || 1;
+    enemy.hp -= dmg;
+    if (enemy.hp <= 0) {
+      this.explode(enemy.x,enemy.y,0xff2200,16);
+      this.tryDropItem(enemy.x,enemy.y,enemy.dropRate);
+      this.score += enemy.score;
+      this.killCount++;
+      this.killScore += enemy.score;
+      this.scoreText.setText('SCORE  '+this.score);
+      enemy.destroy();
+    } else {
+      this.tweens.add({targets:enemy, alpha:0.2, duration:60, yoyo:true});
+    }
+  }
+
+  onPickupItem(player, item) {
+    if (!item.active) return;
+    const type = item.itemType;
+    if (!type) return;
+    const def = POWER_DEFS[type];
+    if (!def) return;
+    // 効果時間を付与（現在の残り時間と比べて長い方を採用）
+    this.powers[type] = Math.max(this.powers[type], def.duration);
+    // 視覚フィードバック
+    this.explode(item.x, item.y, def.color, 10);
+    // アイテム削除
+    item.destroy();
+    // UI更新
+    this.updatePowerUI();
+    // バリアなら即描画
+    if (type === 'BARRIER') this.drawBarrier();
+  }
+
+  onHitBoss(bullet, boss) {
+    if (this.bossDefeating) return;
+    if (!bullet.active || !boss.active) return;
+    // 同一フレーム内の複数ヒットを1回に制限（time.nowは同フレームで同値のためフレーム番号で管理）
+    const frame = this.sys.game.loop.frame;
+    if (boss._lastHitFrame === frame) return;
+    boss._lastHitFrame = frame;
+    if (!bullet.isBeam) bullet.destroy();
+    const dmg = bullet.dmg || 1;
+    this.bossHp = Math.max(0, this.bossHp - dmg);
+    this.drawBossBar();
+    boss.setTint(0xff8888);
+    this.time.delayedCall(80, () => { if (boss && boss.scene) boss.clearTint(); });
+    if (this.bossHp <= 0 && !this.bossDefeating) {
+      this.bossDefeating = true;
+      this.defeatBoss();
+    }
+  }
+
+  // ===== ボス撃破 =====
+  defeatBoss() {
+    if (!this.boss) return;
+    const bx = this.boss.x, by = this.boss.y;
+
+    this.boss.setVelocity(0, 0);
+    this.boss.clearTint();
+    this.bossBarBg.clear();
+    this.bossBarFill.clear();
+    this.bossLabel.setAlpha(0);
+    // ボス撃破と同時に全弾を即消し
+    this.ebullets.clear(true, true);
+
+    // スローモーション爆発演出（約3秒）
+    this.bossSlowExplosion(bx, by, () => {
+      // 爆発完了後にボスを消す
+      if (this.boss) { this.boss.destroy(); this.boss = null; }
+
+      // 最後の大フラッシュ
+      const flash2 = this.add.graphics().setDepth(50);
+      flash2.fillStyle(0xffffff,1); flash2.fillRect(0,0,GW,GH);
+      this.tweens.add({ targets:flash2, alpha:0, duration:600, onComplete:()=>flash2.destroy() });
+
+      // ボーナス付与
+      this.score += 3000;
+      State.addCoins(50);
+      this.scoreText.setText('SCORE  ' + this.score);
+
+      // ボーナステキスト演出
+      const bt = this.add.text(GW/2, GH/2, '★ BOSS DEFEATED ★\n+3000 SCORE  +50🪙', {
+        fontSize:'22px', fill:'#ffff44', fontFamily:'Courier New',
+        fontStyle:'bold', stroke:'#000', strokeThickness:5, align:'center'
+      }).setOrigin(0.5).setDepth(45);
+      this.tweens.add({ targets:bt, y:bt.y-40, alpha:0, duration:3500,
+        onComplete:()=>{ bt.destroy(); this.stageClear(); }
+      });
+    });
+  }
+
+  // ===== ステージクリア =====
+  stageClear() {
+    BGM.stop();
+    const baseScore = this.score;
+
+    // ① ライフボーナス: 残りライフ × 500
+    const lifeBonus = this.lives * 500;
+
+    // ② ボス破壊タイムボーナス: 最大5000点、30秒以内が満点、120秒以上は0
+    const bossElapsed = (this.time.now - (this.bossStartTime||this.time.now)) / 1000;
+    const timeBonus = Math.max(0, Math.floor(5000 * Math.max(0, (120 - bossElapsed) / 90)));
+
+    // ③ 破壊ボーナス: 敵破壊スコア合計の30%
+    const killBonus = Math.floor(this.killScore * 0.3);
+
+    const totalScore = baseScore + lifeBonus + timeBonus + killBonus;
+
+    // コイン計算
+    const earned = Math.floor(totalScore / 20);
+    State.addCoins(earned);
+
+    // クリア画面に表示
+    document.getElementById('clear-score-val').textContent = totalScore.toLocaleString();
+    document.getElementById('clear-coins-val').textContent = earned;
+
+    // ボーナス内訳を表示
+    const bonusArea = document.getElementById('clear-bonuses');
+    bonusArea.innerHTML = '';
+    const bonusStyle = 'font-size:12px;padding:4px 12px';
+    bonusArea.innerHTML += `<div class="bonus-tag" style="${bonusStyle};background:rgba(255,200,0,0.15);color:#ffcc44;border:1px solid #ffcc4444">❤️ ライフボーナス (×${this.lives}) +${lifeBonus.toLocaleString()}</div>`;
+    bonusArea.innerHTML += `<div class="bonus-tag" style="${bonusStyle};background:rgba(0,200,255,0.15);color:#00ccff;border:1px solid #00ccff44">⏱ タイムボーナス (${Math.floor(bossElapsed)}s) +${timeBonus.toLocaleString()}</div>`;
+    bonusArea.innerHTML += `<div class="bonus-tag" style="${bonusStyle};background:rgba(255,100,0,0.15);color:#ff8844;border:1px solid #ff884444">💥 破壊ボーナス (${this.killCount}機) +${killBonus.toLocaleString()}</div>`;
+
+    // ランキング圏内なら名前入力モーダルを出す
+    const now = new Date();
+    const dateStr = now.toISOString();
+    const entry = { score:totalScore, baseScore, lifeBonus, timeBonus, killBonus,
+                    bossTime:Math.floor(bossElapsed), killCount:this.killCount, date:dateStr, name:'---' };
+
+    if (State.isRankIn(totalScore)) {
+      showNameInputModal(totalScore, (name) => {
+        entry.name = name || 'PLAYER';
+        State.addRankEntry(entry);
+        showScreen('clear-screen');
+      });
+    } else {
+      State.addRankEntry(entry);
+      showScreen('clear-screen');
+    }
+  }
+
+  // ===== バリア =====
+  drawBarrier() {
+    this.barrierGfx.clear();
+    if (!this.hasBarrier()) return;
+    const ratio=Math.min(1,this.powers.BARRIER/POWER_DEFS.BARRIER.duration);
+    const alpha=0.35+ratio*0.65;
+    this.barrierGfx.lineStyle(3,0x44ff88,alpha);
+    this.barrierGfx.strokeCircle(this.player.x,this.player.y,36);
+    this.barrierGfx.lineStyle(1,0xaaffcc,alpha*0.5);
+    this.barrierGfx.strokeCircle(this.player.x,this.player.y,42);
+  }
+
+  flashBarrier() {
+    this.tweens.add({targets:this.barrierGfx,alpha:0.15,duration:70,yoyo:true,repeat:3,
+      onComplete:()=>{ this.barrierGfx.setAlpha(1); }});
+  }
+
+  // ===== パワーアップUI =====
+  updatePowerUI() {
+    Object.keys(POWER_DEFS).forEach(key=>{
+      const t=this.powerLabels[key];
+      const ms=this.powers[key];
+      if (ms>0) {
+        const def=POWER_DEFS[key];
+        t.setText(`[${def.label} ${Math.ceil(ms/1000)}s]`);
+        t.setAlpha(ms<2000?(Math.sin(Date.now()*0.01)*0.5+0.5):1);
+      } else {
+        t.setAlpha(0).setText('');
+      }
+    });
+  }
+
+  // ===== ダメージ =====
+  damagePlayer() {
+
+    if (this.invincible || this.dead) {
+      this.damageLock = false;
+      return;
+    }
+
+    this.invincible = true;
+    this.tookDamage = true;
+    this.lives -= 1;
+    if (this.lives < 0) this.lives = 0;
+
+    this.updateLivesUI();
+
+    if (this.lives <= 0) {
+      this.damageLock = false;
+      this.triggerGameOver();
+      return;
+    }
+
+    // 半透明にせず、色味だけ変えて被弾無敵を表現
+    if (this.player && this.player.active) {
+      this.player.setTint(0xff9999);
+    }
+
+    this.time.delayedCall(800, () => {
+      if (!this.player || !this.player.active) {
+        this.invincible = false;
+        this.damageLock = false;
+        return;
+      }
+      this.player.clearTint();
+      this.player.setAlpha(1);
+      this.invincible = false;
+      this.damageLock = false;
+    });
+  }
+
+  // ===== 爆発 =====
+  explode(x,y,color,n,opt={}) {
+    const dur = opt.slow ? Phaser.Math.Between(700,1400) : Phaser.Math.Between(300,600);
+    const dist = opt.slow ? Phaser.Math.Between(80,240)  : Phaser.Math.Between(50,170);
+    const sz   = opt.slow ? Phaser.Math.Between(4,14)    : Phaser.Math.Between(2,6);
+    for (let i=0;i<n;i++) {
+      const p=this.add.graphics();
+      p.fillStyle(color,1); p.fillCircle(0,0,sz);
+      p.x=x; p.y=y; p.setDepth(opt.depth||15);
+      const a=Math.random()*Math.PI*2;
+      const s=Phaser.Math.Between(50,dist);
+      this.tweens.add({
+        targets:p, x:x+Math.cos(a)*s, y:y+Math.sin(a)*s,
+        alpha:0, scaleX:0.2, scaleY:0.2,
+        duration:dur,
+        onComplete:()=>p.destroy()
+      });
+    }
+  }
+
+  // ===== ボス撃破スローモーション爆発 =====
+  bossSlowExplosion(bx, by, onDone) {
+    // 画面フラッシュ
+    const flash = this.add.graphics().setDepth(50);
+    flash.fillStyle(0xffffff, 0.85); flash.fillRect(0,0,GW,GH);
+    this.tweens.add({ targets:flash, alpha:0, duration:300, onComplete:()=>flash.destroy() });
+
+    // 時間を遅くする演出（カメラシェイク）
+    this.cameras.main.shake(200, 0.012);
+
+    const colors = [0xff00ff, 0xff6600, 0xffff00, 0xff0000, 0xffffff, 0x00ffff];
+    let step = 0;
+    const totalSteps = 14;
+    const interval = 220; // ms間隔でじわじわ爆発
+
+    const doStep = () => {
+      if (step >= totalSteps) { onDone(); return; }
+      const ox = Phaser.Math.Between(-70, 70);
+      const oy = Phaser.Math.Between(-45, 45);
+      const col = colors[step % colors.length];
+      // 大爆発パーティクル
+      this.explode(bx+ox, by+oy, col, 22, { slow:true, depth:40 });
+      // 衝撃波リング
+      const ring = this.add.graphics().setDepth(38);
+      ring.lineStyle(3, col, 0.9);
+      ring.strokeCircle(bx+ox, by+oy, 10);
+      this.tweens.add({
+        targets:ring, scaleX:4, scaleY:4, alpha:0,
+        duration:500, onComplete:()=>ring.destroy()
+      });
+      // カメラシェイク
+      if (step % 3 === 0) this.cameras.main.shake(120, 0.009);
+      step++;
+      this.time.delayedCall(interval, doStep);
+    };
+    doStep();
+  }
+
+  // ===== ゲームオーバー =====
+  triggerGameOver() {
+    if (this.dead) return;
+    this.dead = true;
+    this.invincible = true;
+    this.damageLock = false;
+    BGM.stop();
+    this.physics.pause();
+
+    // UI系を消す
+    this.barrierGfx.clear();
+    if (this.bossBarBg)   this.bossBarBg.clear();
+    if (this.bossBarFill) this.bossBarFill.clear();
+    if (this.bossLabel)   this.bossLabel.setAlpha(0);
+
+    const px = this.player.x, py = this.player.y;
+    this.player.clearTint();
+    this.player.setAlpha(1);
+    this.player.setVisible(false);
+    this.cameras.main.shake(250, 0.02);
+    this.explode(px, py, 0xff4400, 30);
+
+    this.time.delayedCall(2000, () => {
+      if (!this.scene || !this.scene.isActive()) return;
+      this.showGameOverUI();
+    });
+  }
+
+  cleanupGameOverUI() {
+    [
+      'gameOverOverlay','gameOverTitle','gameOverScore','gameOverRetryBtn','gameOverHomeBtn'
+    ].forEach(key => {
+      const obj = this[key];
+      if (obj && obj.destroy) obj.destroy();
+      this[key] = null;
+    });
+  }
+
+  showGameOverUI() {
+    this.cleanupGameOverUI();
+
+    this.gameOverOverlay = this.add.graphics().setDepth(25);
+    this.gameOverOverlay.fillStyle(0x000000, 0.75);
+    this.gameOverOverlay.fillRect(0,0,GW,GH);
+
+    this.gameOverTitle = this.add.text(GW/2, GH/2-80, 'GAME OVER', {
+      fontSize:'40px', fill:'#ff2244', fontFamily:'Courier New',
+      fontStyle:'bold', stroke:'#000', strokeThickness:5
+    }).setOrigin(0.5).setDepth(30).setAlpha(0);
+    this.tweens.add({ targets:this.gameOverTitle, alpha:1, duration:400 });
+
+    this.gameOverScore = this.add.text(GW/2, GH/2-10, 'SCORE  '+this.score, {
+      fontSize:'24px', fill:'#ffff00', fontFamily:'Courier New', fontStyle:'bold'
+    }).setOrigin(0.5).setDepth(30);
+
+    this.gameOverRetryBtn = this.add.text(GW/2, GH/2+50, '  もう一度  ', {
+      fontSize:'20px', fill:'#00ffcc', fontFamily:'Courier New',
+      fontStyle:'bold', backgroundColor:'#003333', padding:{x:20,y:10}
+    }).setOrigin(0.5).setDepth(30).setInteractive({useHandCursor:true});
+    this.gameOverRetryBtn.on('pointerdown', ()=>{
+      this.cleanupGameOverUI();
+      this.tweens.killAll();
+      this.time.removeAllEvents();
+      this.physics.resume();
+      BGM.playNormal();
+      this.scene.restart();
+    });
+
+    this.gameOverHomeBtn = this.add.text(GW/2, GH/2+110, '  ホームへ  ', {
+      fontSize:'16px', fill:'#aaa', fontFamily:'Courier New',
+      backgroundColor:'#111', padding:{x:16,y:8}
+    }).setOrigin(0.5).setDepth(30).setInteractive({useHandCursor:true});
+    this.gameOverHomeBtn.on('pointerdown', ()=>{
+      this.cleanupGameOverUI();
+      this.tweens.killAll();
+      this.time.removeAllEvents();
+      this.physics.resume();
+      showScreen('home-screen');
+    });
+  }
+
+  shutdown() {
+    this.cleanupGameOverUI();
+  }
+
+
+  // ===== UPDATE =====
+  update(time, delta) {
+    if (this.dead) return;
+
+    // 星
+    for (const s of this.stars) {
+      s.obj.y+=s.spd;
+      if (s.obj.y>GH){s.obj.y=0;s.obj.x=Phaser.Math.Between(0,GW);}
+    }
+
+    // 自機移動
+    if (this.isTouching) {
+      this.player.x+=(this.touchX-this.player.x)*0.28;
+      this.player.y+=(this.touchY-this.player.y)*0.28;
+      this.player.setVelocity(0);
+    } else {
+      this.player.setVelocity(0);
+      if (this.cursors.left.isDown)  this.player.setVelocityX(-this.moveSpeed);
+      if (this.cursors.right.isDown) this.player.setVelocityX(this.moveSpeed);
+      if (this.cursors.up.isDown)    this.player.setVelocityY(-this.moveSpeed);
+      if (this.cursors.down.isDown)  this.player.setVelocityY(this.moveSpeed);
+    }
+
+    // バリア
+    this.drawBarrier();
+
+    // パワーアップタイマー
+    let dirty=false;
+    Object.keys(this.powers).forEach(k=>{
+      if (this.powers[k]>0){ this.powers[k]=Math.max(0,this.powers[k]-delta); dirty=true; }
+    });
+    if (dirty) this.updatePowerUI();
+
+    // 射撃
+    this.fireTimer-=delta;
+    const interval=this.hasBeam()?105:170;
+    if (this.fireTimer<=0&&(this.isTouching||this.spaceKey.isDown)){
+      this.fireBullet(); this.fireTimer=interval;
+    }
+
+    // ===== ボスフェーズ =====
+    if (this.bossPhase) {
+      if (this.boss && this.boss.active) {
+        const b   = this.boss;
+        const hw  = 62, hh = 50;
+        const ratio = this.bossHp / this.bossMaxHp;
+
+        // 入場完了: ボスが境界内に入ったら確定
+        if (!this.bossEntered && b.y >= b._BT + hh) {
+          this.bossEntered = true;
+          // 入場後の初期速度をHP連動で設定
+          const spd = this.bossMoveSpeed();
+          b.setVelocity(
+            Phaser.Math.Between(80,130) * (Math.random()<0.5?1:-1),
+            Phaser.Math.Between(60,100) * (Math.random()<0.5?1:-1)
+          );
+        }
+
+        if (this.bossEntered) {
+          // ── HP連動の移動速度維持 ──
+          const targetSpd = this.bossMoveSpeed();
+          const vx = b.body.velocity.x, vy = b.body.velocity.y;
+          const spd = Math.sqrt(vx*vx+vy*vy);
+          if (spd > 0 && Math.abs(spd - targetSpd) > 20) {
+            const scale = targetSpd / spd;
+            b.setVelocity(vx*scale, vy*scale);
+          }
+
+          // ── 上半分バウンス（4辺すべて手動） ──
+          if (b.x - hw < b._BL) {
+            b.x = b._BL + hw;
+            if (b.body.velocity.x < 0) b.setVelocityX(-b.body.velocity.x);
+          } else if (b.x + hw > b._BR) {
+            b.x = b._BR - hw;
+            if (b.body.velocity.x > 0) b.setVelocityX(-b.body.velocity.x);
+          }
+          if (b.y - hh < b._BT) {
+            b.y = b._BT + hh;
+            if (b.body.velocity.y < 0) b.setVelocityY(-b.body.velocity.y);
+          } else if (b.y + hh > b._BB) {
+            b.y = b._BB - hh;
+            if (b.body.velocity.y > 0) b.setVelocityY(-b.body.velocity.y);
+          }
+
+          // ── 射撃タイマー（HP連動） ──
+          this.bossShootCd -= delta;
+          if (this.bossShootCd <= 0) {
+            this.fireBossPattern();
+            this.bossShootCd = ratio > 0.75 ? 1800
+                             : ratio > 0.50 ? 1200
+                             : ratio > 0.25 ?  800
+                             :                 500;
+          }
+
+          // ── アイテム吐き出しタイマー ──
+          this.bossItemCd -= delta;
+          if (this.bossItemCd <= 0) {
+            this.bossDropItem();
+            this.bossItemCd = Phaser.Math.Between(4000, 7000);
+          }
+
+          // ── フェーズ遷移テキスト ──
+          const newPhase = ratio > 0.75 ? 1 : ratio > 0.50 ? 2 : ratio > 0.25 ? 3 : 4;
+          if (newPhase !== this.bossPhaseNum) {
+            this.bossPhaseNum = newPhase;
+            const phaseColors = {1:'#ff88ff',2:'#ff6600',3:'#ff2200',4:'#ffffff'};
+            const pt = this.add.text(GW/2, GH/2-20, `PHASE ${newPhase}!`, {
+              fontSize:'28px', fill:phaseColors[newPhase], fontFamily:'Courier New',
+              fontStyle:'bold', stroke:'#000', strokeThickness:5
+            }).setOrigin(0.5).setDepth(35);
+            this.tweens.add({targets:pt, y:pt.y-60, alpha:0, duration:1200, onComplete:()=>pt.destroy()});
+          }
+        }
+      }
+      // ボス弾の画面外削除
+      this.ebullets.children.each(b=>{ if(!b.active || b.y>GH+30||b.y<-30||b.x<-30||b.x>GW+30) b.destroy(); });
+      this.bullets.children.each(b=>{ if(b.y<-40||b.x<-20||b.x>GW+20) b.destroy(); });
+      this.items.children.each(it=>{ if(it.y>GH+30) it.destroy(); });
+      return;
+    }
+
+    // ===== 通常フェーズ =====
+    // 敵スポーン
+    this.spawnTimer -= delta;
+    if (this.spawnTimer <= 0) {
+      if (this.wave >= this.BOSS_WAVE) {
+        // ボス登場（まだ呼ばれていない場合のみ）
+        if (!this.bossPhase) this.spawnBoss();
+      } else {
+        this.spawnEnemy();
+        this.wave++;
+        this.spawnDelay = Math.max(400, 1000 - this.wave * 30);
+        this.spawnTimer = this.spawnDelay;
+      }
+    }
+
+    // 敵の弾（自機狙い）
+    this.enemies.children.each(e=>{
+      if (!e.active||!e.shoots) return;
+      e.shootCd-=delta;
+      if (e.shootCd<=0) {
+        this.fireEnemyBullet(e);
+        e.shootCd=Phaser.Math.Between(Math.floor(e.shootInterval*0.7), e.shootInterval+600);
+      }
+    });
+
+    // 全敵: パターン別移動更新
+    this.enemies.children.each(e=>{
+      if (!e.active) return;
+      const pat = e._pattern;
+
+      if (pat === 'zigzag') {
+        // ジグザグ: タイマーでX速度反転
+        e._zigzagTimer -= delta;
+        if (e._zigzagTimer <= 0) {
+          e._zigzagVx = -e._zigzagVx;
+          e.setVelocityX(e._zigzagVx);
+          e._zigzagTimer = Phaser.Math.Between(300, 600);
+        }
+        if (e.body.velocity.y < 10) e.setVelocityY(Phaser.Math.Between(80,120));
+      } else if (pat === 'spiral') {
+        // 螺旋: 振れ幅が徐々に拡大しながら回転
+        e._spiralAngle += delta * 0.004 * e._spiralDir;
+        e._spiralR = Math.min(e._spiralR + delta * 0.04, 160);
+        e.setVelocityX(Math.sin(e._spiralAngle) * e._spiralR);
+        if (e.body.velocity.y < 10) e.setVelocityY(e._spiralSpdY || 70);
+      }
+      // straight / bounce / dash は velocity 設定済みなので追加処理不要
+
+      // 全敵共通: X壁バウンス（手動）
+      const hw = e._halfW || 18;
+      if (e.x - hw < 0) {
+        e.x = hw;
+        if (e.body.velocity.x < 0) e.setVelocityX(-e.body.velocity.x);
+        if (pat === 'zigzag') e._zigzagVx = Math.abs(e._zigzagVx);
+      } else if (e.x + hw > GW) {
+        e.x = GW - hw;
+        if (e.body.velocity.x > 0) e.setVelocityX(-e.body.velocity.x);
+        if (pat === 'zigzag') e._zigzagVx = -Math.abs(e._zigzagVx);
+      }
+    });
+
+    // 画面外削除
+    this.bullets.children.each(b=>{if(b.y<-40||b.y>GH+20||b.x<-20||b.x>GW+20)b.destroy();});
+    this.ebullets.children.each(b=>{if(!b.active || b.y>GH+20)b.destroy();});
+    this.enemies.children.each(e=>{if(e.y>GH+60)e.destroy();});
+    this.items.children.each(it=>{if(it.y>GH+30)it.destroy();});
+  }
+}
+
+// ========================================================
+//  Phaser 起動
+// ========================================================
+const phaserGame = new Phaser.Game({
+  type: Phaser.AUTO,
+  width:GW, height:GH,
+  backgroundColor:'#04040f',
+  scale:{
+    mode:Phaser.Scale.FIT,
+    autoCenter:Phaser.Scale.CENTER_BOTH,
+    width:GW, height:GH,
+  },
+  physics:{ default:'arcade', arcade:{gravity:{y:0},debug:false} },
+  input:{ activePointers:2 },
+  scene:GameScene,
+  parent:'game-container'
+});
+
+// ========================================================
+//  HTML UI イベント
+// ========================================================
+// ゲーム開始 → HTML UIを隠す
+function startGame() {
+  hideOverlay();
+  BGM.playNormal();
+  phaserGame.scene.getScene('Game').scene.restart();
+}
+
+// ホーム画面ボタン
+document.getElementById('btn-game').addEventListener('click', startGame);
+document.getElementById('btn-shop').addEventListener('click', ()=>{
+  renderShop(); showScreen('shop-screen');
+});
+document.getElementById('btn-gacha').addEventListener('click', ()=>{
+  renderGachaHistory(); showScreen('gacha-screen');
+});
+document.getElementById('btn-ranking').addEventListener('click', ()=>{
+  renderRanking(); showScreen('ranking-screen');
+});
+
+// バック
+document.getElementById('shop-back').addEventListener('click',    ()=>showScreen('home-screen'));
+document.getElementById('gacha-back').addEventListener('click',   ()=>showScreen('home-screen'));
+document.getElementById('ranking-back').addEventListener('click', ()=>showScreen('home-screen'));
+document.getElementById('skin-back').addEventListener('click',    ()=>showScreen('home-screen'));
+
+document.getElementById('btn-skin').addEventListener('click', ()=>{
+  renderSkin(); showScreen('skin-screen');
+});
+
+// クリア → ホーム
+document.getElementById('clear-home-btn').addEventListener('click', ()=>{
+  BGM.stop();
+  showScreen('home-screen');
+});
+
+// ガチャ
+document.getElementById('gacha-btn').addEventListener('click', ()=>{
+  if (State.coins < 50) { toast('コインが足りません（50コイン必要）'); return; }
+  State.addCoins(-50);
+  updateCoinDisplays();
+
+  const prize = rollGacha();
+  State.gachaHistory.push(prize.id);
+  State.save();
+  prize.action();
+  updateCoinDisplays();
+
+  const machine = document.getElementById('gacha-machine');
+  machine.classList.remove('spin');
+  void machine.offsetWidth; // reflow
+  machine.classList.add('spin');
+  machine.textContent = prize.icon;
+
+  const rarityColor = {common:'#aaa',rare:'#4af',epic:'#f8f',legendary:'#ff0'};
+  const result = document.getElementById('gacha-result');
+  result.innerHTML = `
+    <div class="gacha-result-icon">${prize.icon}</div>
+    <div class="gacha-result-name" style="color:${rarityColor[prize.rarity]}">${prize.name}</div>
+    <div class="gacha-result-desc">${prize.desc}</div>
+  `;
+  renderGachaHistory();
+});
+
+// 起動時はホーム画面
+showScreen('home-screen');
+
+// ========================================================
+//  BGM (Web Audio API によるプロシージャル生成)
+// ========================================================
+const BGM = (() => {
+  let ctx = null, masterGain = null;
+  let loopHandle = null, bossLoopHandle = null;
+  let currentMode = null;
+
+  function getCtx() {
+    if (!ctx) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = ctx.createGain();
+      masterGain.gain.value = 0.28;
+      masterGain.connect(ctx.destination);
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+
+  function note(freq, start, dur, type='square', vol=0.18, detune=0) {
+    const c = getCtx();
+    const osc = c.createOscillator();
+    const g   = c.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    if (detune) osc.detune.value = detune;
+    osc.connect(g); g.connect(masterGain);
+    g.gain.setValueAtTime(0, start);
+    g.gain.linearRampToValueAtTime(vol, start + 0.01);
+    g.gain.linearRampToValueAtTime(0, start + dur * 0.85);
+    osc.start(start);
+    osc.stop(start + dur);
+  }
+
+  function kick(start) {
+    const c = getCtx();
+    const osc = c.createOscillator();
+    const g = c.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(180, start);
+    osc.frequency.exponentialRampToValueAtTime(40, start + 0.12);
+    g.gain.setValueAtTime(0.7, start);
+    g.gain.exponentialRampToValueAtTime(0.001, start + 0.18);
+    osc.connect(g); g.connect(masterGain);
+    osc.start(start); osc.stop(start + 0.2);
+  }
+
+  function snare(start) {
+    const c = getCtx();
+    const buf = c.createBuffer(1, c.sampleRate * 0.12, c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1);
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const g = c.createGain();
+    const f = c.createBiquadFilter();
+    f.type = 'highpass'; f.frequency.value = 1800;
+    g.gain.setValueAtTime(0.28, start);
+    g.gain.exponentialRampToValueAtTime(0.001, start + 0.12);
+    src.connect(f); f.connect(g); g.connect(masterGain);
+    src.start(start); src.stop(start + 0.14);
+  }
+
+  // ---- 通常BGM ----
+  const NORMAL_MELODY = [
+    [392,0.12],[440,0.12],[494,0.12],[523,0.25],[494,0.12],[440,0.25],
+    [392,0.12],[349,0.12],[330,0.12],[294,0.25],[330,0.12],[349,0.25],
+    [392,0.12],[440,0.12],[494,0.12],[523,0.25],[587,0.12],[659,0.25],
+    [587,0.12],[523,0.12],[494,0.12],[440,0.25],[392,0.50],
+  ];
+  const NORMAL_BASS = [
+    [98,0.25],[98,0.25],[110,0.25],[110,0.25],
+    [87,0.25],[87,0.25],[98,0.25],[98,0.25],
+    [98,0.25],[98,0.25],[110,0.25],[110,0.25],
+    [87,0.25],[87,0.25],[98,0.50],
+  ];
+
+  function playNormalLoop() {
+    const c = getCtx();
+    const t0 = c.currentTime + 0.05;
+    const beat = 0.25;
+    const bars = 4;
+    const loopLen = beat * 4 * bars; // 4小節
+
+    // メロディ
+    let mt = t0;
+    for (const [f, d] of NORMAL_MELODY) {
+      note(f, mt, d * 0.9, 'square', 0.13);
+      mt += d;
+    }
+    // ベース
+    let bt2 = t0;
+    for (const [f, d] of NORMAL_BASS) {
+      note(f, bt2, d * 0.8, 'triangle', 0.22);
+      bt2 += d;
+    }
+    // ドラム
+    for (let i = 0; i < bars * 4; i++) {
+      if (i % 4 === 0) kick(t0 + i * beat);
+      if (i % 4 === 2) snare(t0 + i * beat);
+    }
+    loopHandle = setTimeout(playNormalLoop, loopLen * 1000 - 60);
+  }
+
+  // ---- ボスBGM ----
+  const BOSS_MELODY = [
+    [220,0.12],[233,0.12],[220,0.12],[196,0.25],[175,0.12],[196,0.25],
+    [220,0.12],[233,0.12],[247,0.12],[262,0.25],[247,0.12],[233,0.25],
+    [220,0.12],[196,0.12],[175,0.12],[165,0.25],[175,0.12],[196,0.25],
+    [220,0.12],[233,0.12],[220,0.12],[196,0.50],
+  ];
+
+  function playBossLoop() {
+    const c = getCtx();
+    const t0 = c.currentTime + 0.05;
+    const beat = 0.18; // 通常より速い
+    const bars = 4;
+    const loopLen = beat * 4 * bars;
+
+    let mt = t0;
+    for (const [f, d] of BOSS_MELODY) {
+      note(f * 2, mt, d * 0.85, 'sawtooth', 0.12);
+      note(f,     mt, d * 0.85, 'square',   0.10, -8);
+      mt += d;
+    }
+    // ベース（重め）
+    let bt2 = t0;
+    for (let i = 0; i < bars * 4; i++) {
+      note(55 + (i % 4 < 2 ? 0 : 7), bt2, beat * 0.7, 'triangle', 0.30);
+      bt2 += beat;
+    }
+    // ドラム（速め）
+    for (let i = 0; i < bars * 4; i++) {
+      kick(t0 + i * beat);
+      if (i % 2 === 1) snare(t0 + i * beat);
+    }
+    bossLoopHandle = setTimeout(playBossLoop, loopLen * 1000 - 60);
+  }
+
+  function stopAll() {
+    clearTimeout(loopHandle);
+    clearTimeout(bossLoopHandle);
+    loopHandle = null; bossLoopHandle = null;
+  }
+
+  return {
+    playNormal() {
+      if (currentMode === 'normal') return;
+      stopAll();
+      currentMode = 'normal';
+      playNormalLoop();
+    },
+    playBoss() {
+      if (currentMode === 'boss') return;
+      stopAll();
+      currentMode = 'boss';
+      playBossLoop();
+    },
+    stop() {
+      stopAll();
+      currentMode = null;
+      if (masterGain) {
+        masterGain.gain.setValueAtTime(masterGain.gain.value, getCtx().currentTime);
+        masterGain.gain.linearRampToValueAtTime(0, getCtx().currentTime + 0.5);
+        setTimeout(()=>{ if(masterGain) masterGain.gain.value = 0.28; }, 600);
+      }
+    },
+    setVolume(v) { if(masterGain) masterGain.gain.value = v; }
+  };
+})();
+</script>
+
+</body>
+</html>
