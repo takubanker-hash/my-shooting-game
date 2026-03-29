@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0055)file:///C:/Users/oudoi/Downloads/index_20260329_15.html -->
+<!-- saved from url=(0055)file:///C:/Users/oudoi/Downloads/index_20260329_16.html -->
 <html lang="ja"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -267,7 +267,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; touch-act
 </style>
 <script src="./index_files/phaser.min.js.ダウンロード"></script></head>
 <body>
-<div id="game-container"><canvas width="400" height="700" style="width: 414.629px; height: 725.6px;"></canvas></div>
+<div id="game-container"><canvas width="400" height="700" style="width: 418.286px; height: 732px;"></canvas></div>
 
 <!-- HTML UI オーバーレイ -->
 <div id="ui-overlay" class="active">
@@ -333,13 +333,58 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; touch-act
   </div>
 
   <!-- ランキング画面 -->
-  <div class="panel-screen" id="ranking-screen" style="display:none">
+  <div class="panel-screen" id="ranking-screen" style="display: none;">
     <div class="panel-header">
       <div class="back-btn" id="ranking-back">←</div>
       <div class="panel-title" style="color:#4488ff">🏆 ランキング</div>
       <div style="width:36px"></div>
     </div>
-    <div class="panel-body" id="ranking-body"></div>
+    <div class="panel-body" id="ranking-body"><div class="rank-row">
+          <div class="rank-num gold">🥇</div>
+          <div class="rank-info">
+            <div class="rank-score" style="display:flex;align-items:baseline;gap:10px">
+              <span style="font-size:15px;color:#ff88ff;font-weight:bold">DEBUG</span>
+              <span>27,586</span>
+            </div>
+            <div class="rank-detail">基本 9,710 &nbsp;|&nbsp; 3/30</div>
+            <div class="rank-bonus"><span class="bonus-tag" style="background:rgba(255,200,0,0.15);color:#ffcc44;border:1px solid #ffcc4444">❤️ライフ +10,500</span><span class="bonus-tag" style="background:rgba(0,200,255,0.15);color:#00ccff;border:1px solid #00ccff44">⏱18s +666</span><span class="bonus-tag" style="background:rgba(255,100,0,0.15);color:#ff8844;border:1px solid #ff884444">💥35機 +6,710</span></div>
+          </div></div><div class="rank-row">
+          <div class="rank-num silver">🥈</div>
+          <div class="rank-info">
+            <div class="rank-score" style="display:flex;align-items:baseline;gap:10px">
+              <span style="font-size:15px;color:#ff88ff;font-weight:bold">DEBUG</span>
+              <span>22,360</span>
+            </div>
+            <div class="rank-detail">基本 8,930 &nbsp;|&nbsp; 3/30</div>
+            <div class="rank-bonus"><span class="bonus-tag" style="background:rgba(255,200,0,0.15);color:#ffcc44;border:1px solid #ffcc4444">❤️ライフ +7,500</span><span class="bonus-tag" style="background:rgba(255,100,0,0.15);color:#ff8844;border:1px solid #ff884444">💥33機 +5,930</span></div>
+          </div></div><div class="rank-row">
+          <div class="rank-num bronze">🥉</div>
+          <div class="rank-info">
+            <div class="rank-score" style="display:flex;align-items:baseline;gap:10px">
+              <span style="font-size:15px;color:#ff88ff;font-weight:bold">DEBUG</span>
+              <span>21,640</span>
+            </div>
+            <div class="rank-detail">基本 9,320 &nbsp;|&nbsp; 3/30</div>
+            <div class="rank-bonus"><span class="bonus-tag" style="background:rgba(255,200,0,0.15);color:#ffcc44;border:1px solid #ffcc4444">❤️ライフ +6,000</span><span class="bonus-tag" style="background:rgba(255,100,0,0.15);color:#ff8844;border:1px solid #ff884444">💥34機 +6,320</span></div>
+          </div></div><div class="rank-row">
+          <div class="rank-num normal">4</div>
+          <div class="rank-info">
+            <div class="rank-score" style="display:flex;align-items:baseline;gap:10px">
+              <span style="font-size:15px;color:#ff88ff;font-weight:bold">DEBUG</span>
+              <span>17,192</span>
+            </div>
+            <div class="rank-detail">基本 9,040 &nbsp;|&nbsp; 3/30</div>
+            <div class="rank-bonus"><span class="bonus-tag" style="background:rgba(255,200,0,0.15);color:#ffcc44;border:1px solid #ffcc4444">❤️ライフ +4,500</span><span class="bonus-tag" style="background:rgba(0,200,255,0.15);color:#00ccff;border:1px solid #00ccff44">⏱27s +-2,388</span><span class="bonus-tag" style="background:rgba(255,100,0,0.15);color:#ff8844;border:1px solid #ff884444">💥34機 +6,040</span></div>
+          </div></div><div class="rank-row">
+          <div class="rank-num normal">5</div>
+          <div class="rank-info">
+            <div class="rank-score" style="display:flex;align-items:baseline;gap:10px">
+              <span style="font-size:15px;color:#ff88ff;font-weight:bold">DEBUG</span>
+              <span>15,320</span>
+            </div>
+            <div class="rank-detail">基本 6,160 &nbsp;|&nbsp; 3/30</div>
+            <div class="rank-bonus"><span class="bonus-tag" style="background:rgba(255,200,0,0.15);color:#ffcc44;border:1px solid #ffcc4444">❤️ライフ +6,000</span><span class="bonus-tag" style="background:rgba(255,100,0,0.15);color:#ff8844;border:1px solid #ff884444">💥19機 +3,160</span></div>
+          </div></div></div>
   </div>
 
   <!-- スキンカタログ画面 -->
@@ -379,18 +424,13 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; touch-act
 </div>
 
 
-<div id="debug-log" style="
-  position:fixed; left:8px; top:48px; width:min(384px, calc(100vw - 16px)); max-height:240px;
-  overflow:auto; z-index:500; background:rgba(0,0,0,0.85); color:#8cff8c;
-  border:1px solid #335533; border-radius:8px; padding:8px 10px; font:12px/1.4 monospace;
-  white-space:pre-wrap; display:none; pointer-events:none;
-"></div>
+<div id="debug-log" style="position: fixed; left: 8px; bottom: 48px; width: min(384px, -16px + 100vw); max-height: 240px; overflow: auto; z-index: 500; background: rgba(0, 0, 0, 0.85); color: rgb(140, 255, 140); border: 1px solid rgb(51, 85, 51); border-radius: 8px; padding: 8px 10px; font: 12px / 1.4 monospace; white-space: pre-wrap; display: none; pointer-events: none;"><div>[1:08:43] debug ui opened</div><div>[1:08:46] [RANK] renderRanking wrapper start</div><div>[1:08:46] [RANK] module renderRanking start</div><div>[1:08:46] [RANK] fetchRankingEntries start</div><div>[1:08:47] [RANK] fetch snapshot exists= true</div><div>[1:08:47] [RANK] fetch rows= 6</div><div>[1:08:47] [RANK] module renderRanking count= 5</div></div>
 
 <div id="debug-controls" style="
-  position:fixed; right:8px; top:8px; z-index:501; display:flex; gap:6px;
+  position:fixed; left:8px; bottom:8px; z-index:501; display:flex; gap:6px;
 ">
   <button id="debug-toggle-btn" style="padding:6px 10px;border-radius:8px;border:1px solid #4a4;background:#111;color:#8cff8c;font:12px monospace;cursor:pointer;">DEBUG</button>
-  <button id="debug-clear-btn" style="padding:6px 10px;border-radius:8px;border:1px solid #666;background:#111;color:#ddd;font:12px monospace;cursor:pointer;display:none;">CLEAR</button>
+  <button id="debug-clear-btn" style="padding: 6px 10px; border-radius: 8px; border: 1px solid rgb(102, 102, 102); background: rgb(17, 17, 17); color: rgb(221, 221, 221); font: 12px monospace; cursor: pointer; display: none;">CLEAR</button>
 </div>
 
 <div id="toast"></div>
