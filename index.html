@@ -620,7 +620,12 @@ function getActiveSkin() {
   const id = localStorage.getItem('activeSkin') || 'skin_default';
   return SKIN_DEFS.find(s=>s.id===id) || SKIN_DEFS[0];
 }
-function setActiveSkin(id) { localStorage.setItem('activeSkin', id); }
+function setActiveSkin(id) {
+  localStorage.setItem('activeSkin', id);
+  if (window.currentGameScene && window.currentGameScene.player && window.currentGameScene.player.active) {
+    window.currentGameScene.player.setTexture(id);
+  }
+}
 function hasSkin(id) { return id==='skin_default' || State.hasItem(id); }
 
 // ガチャ景品定義
@@ -877,10 +882,6 @@ function renderSkin() {
     const rarityLabel = {common:'COMMON',rare:'RARE',epic:'EPIC',legendary:'★LEGEND'}[skin.rarity]||skin.rarity.toUpperCase();
 
     if (owned) {
-      // プレビューをcanvasで描画
-      const cvs = document.createElement('canvas');
-      cvs.width = 40; cvs.height = 56;
-      cvs.style.cssText = 'image-rendering:pixelated;width:40px;height:56px;';
       card.innerHTML = `
         <div class="skin-preview"></div>
         ${isActive?'<div class="skin-active-badge">使用中</div>':''}
@@ -889,13 +890,21 @@ function renderSkin() {
         <div class="skin-desc">${skin.desc}</div>
         ${!isActive?`<div style="margin-top:4px;padding:4px 10px;border-radius:6px;border:1px solid #ff88ff;color:#ff88ff;font-size:11px;font-family:monospace;cursor:pointer" data-skinid="${skin.id}">選択</div>`:''}
       `;
-      card.querySelector('.skin-preview').appendChild(cvs);
-      // Phaser未起動の場合は絵文字フォールバック
-      try {
-        const ctx = cvs.getContext('2d');
-        ctx.clearRect(0,0,40,56);
-        ctx.font='28px serif'; ctx.textAlign='center'; ctx.fillText(skin.icon,20,36);
-      } catch(_){}
+      const preview = card.querySelector('.skin-preview');
+      const img = document.createElement('img');
+      img.src = `./assets/ships/${skin.id}.png`;
+      img.alt = skin.name;
+      img.width = 40;
+      img.height = 56;
+      img.style.cssText = 'width:40px;height:56px;image-rendering:pixelated;object-fit:contain;';
+      img.onerror = () => {
+        img.remove();
+        const fallback = document.createElement('div');
+        fallback.textContent = skin.icon;
+        fallback.style.cssText = 'font-size:28px;line-height:1;';
+        preview.appendChild(fallback);
+      };
+      preview.appendChild(img);
       if (!isActive) {
         const btn = card.querySelector('[data-skinid]');
         if (btn) btn.addEventListener('click', (e)=>{
@@ -927,14 +936,6 @@ const POWER_DEFS = {
 
 // ===== テクスチャ生成 =====
 function makeTextures(scene) {
-  // アクティブスキンに応じてプレイヤーテクスチャを毎回生成
-  {
-    const skin = getActiveSkin();
-    if (scene.textures.exists('player')) scene.textures.remove('player');
-    const g = scene.make.graphics({ add:false });
-    skin.draw(g);
-    g.generateTexture('player',40,56); g.destroy();
-  }
   // 敵A 雑魚（小型赤）
   if (!scene.textures.exists('enemy_a')) {
     const g = scene.make.graphics({ add:false });
@@ -1064,7 +1065,18 @@ function makeTextures(scene) {
 class GameScene extends Phaser.Scene {
   constructor() { super('Game'); }
 
+  preload() {
+    SKIN_DEFS.forEach((skin) => {
+      const key = skin.id;
+      const url = `./assets/ships/${key}.png`;
+      if (!this.textures.exists(key)) {
+        this.load.image(key, url);
+      }
+    });
+  }
+
   create() {
+    window.currentGameScene = this;
     makeTextures(this);
 
     // 星
@@ -1088,7 +1100,9 @@ class GameScene extends Phaser.Scene {
     const startLives = hasShopLives ? 9 : 8;
 
     // 自機
-    this.player = this.physics.add.sprite(GW/2,GH-100,'player');
+    const activeSkinId = getActiveSkin().id;
+    const playerTexture = this.textures.exists(activeSkinId) ? activeSkinId : 'skin_default';
+    this.player = this.physics.add.sprite(GW/2,GH-100,playerTexture);
     this.player.setCollideWorldBounds(true).setDepth(10);
 
     // グループ
@@ -2001,6 +2015,7 @@ if (window.firebaseRanking && window.firebaseRanking.isRankIn) {
   }
 
   shutdown() {
+    if (window.currentGameScene === this) window.currentGameScene = null;
     this.cleanupGameOverUI();
   }
 
