@@ -225,6 +225,47 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; touch-act
 }
 .skin-locked-icon { font-size:28px; }
 
+/* スキンプレビューモーダル */
+#skin-preview-modal {
+  position:fixed; inset:0; background:rgba(0,0,0,0.88);
+  display:none; align-items:center; justify-content:center; z-index:290;
+}
+#skin-preview-modal.active { display:flex; }
+.skin-preview-modal-box {
+  width:min(92vw, 360px); border-radius:18px; padding:18px 18px 16px;
+  background:linear-gradient(180deg,#0d1026 0%, #080816 100%);
+  border:2px solid #ff88ff; box-shadow:0 0 36px rgba(255,136,255,0.22);
+  display:flex; flex-direction:column; align-items:center; gap:12px;
+  position:relative;
+}
+.skin-preview-close {
+  position:absolute; top:10px; right:10px; width:32px; height:32px;
+  border-radius:50%; border:1px solid #556; background:rgba(255,255,255,0.08);
+  color:#fff; font-size:18px; cursor:pointer;
+}
+.skin-preview-large {
+  width:160px; height:224px; display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(circle at 50% 35%, rgba(70,100,255,0.18), rgba(0,0,0,0) 60%);
+  border-radius:16px; border:1px solid rgba(255,255,255,0.08);
+}
+.skin-preview-large img {
+  width:160px; height:224px; image-rendering:pixelated; object-fit:contain;
+}
+.skin-preview-large-fallback { font-size:72px; line-height:1; }
+.skin-preview-modal-name { font-size:18px; color:#fff; font-weight:bold; letter-spacing:1px; text-align:center; }
+.skin-preview-modal-rarity { font-size:12px; font-weight:bold; letter-spacing:1px; }
+.skin-preview-modal-desc { font-size:12px; color:#99a; text-align:center; min-height:32px; }
+.skin-preview-modal-actions { display:flex; gap:10px; width:100%; justify-content:center; }
+.skin-preview-modal-btn {
+  min-width:110px; padding:10px 16px; border-radius:10px; border:1px solid #ff88ff;
+  background:rgba(255,136,255,0.12); color:#ff88ff; font-family:'Courier New',monospace;
+  font-size:13px; font-weight:bold; cursor:pointer;
+}
+.skin-preview-modal-btn.secondary {
+  border-color:#556; background:rgba(255,255,255,0.06); color:#ddd;
+}
+.skin-preview-modal-btn:disabled { opacity:0.45; cursor:default; }
+
 /* 名前入力モーダル */
 #name-modal {
   position:fixed; inset:0; background:rgba(0,0,0,0.82);
@@ -265,7 +306,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; touch-act
 }
 #toast.show { opacity:1; }
 </style>
-</head>
+<script src="./index_files/phaser.min.js.ダウンロード"></script></head>
 <body>
 <div id="game-container"><canvas width="400" height="700" style="width: 418.286px; height: 732px;"></canvas></div>
 
@@ -410,6 +451,21 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; touch-act
     <button class="clear-btn" id="clear-home-btn">ホームへ</button>
   </div>
 
+</div>
+
+<!-- スキンプレビューモーダル -->
+<div id="skin-preview-modal">
+  <div class="skin-preview-modal-box">
+    <button class="skin-preview-close" id="skin-preview-close" aria-label="閉じる">×</button>
+    <div class="skin-preview-large" id="skin-preview-large"></div>
+    <div class="skin-preview-modal-name" id="skin-preview-name"></div>
+    <div class="skin-preview-modal-rarity" id="skin-preview-rarity"></div>
+    <div class="skin-preview-modal-desc" id="skin-preview-desc"></div>
+    <div class="skin-preview-modal-actions">
+      <button class="skin-preview-modal-btn secondary" id="skin-preview-cancel">戻る</button>
+      <button class="skin-preview-modal-btn" id="skin-preview-apply">このスキンにする</button>
+    </div>
+  </div>
 </div>
 
 <!-- 名前入力モーダル -->
@@ -620,19 +676,10 @@ function getActiveSkin() {
   const id = localStorage.getItem('activeSkin') || 'skin_default';
   return SKIN_DEFS.find(s=>s.id===id) || SKIN_DEFS[0];
 }
-function getSkinImageUrl(id) {
-  return new URL(`./assets/ships/${id}.png`, window.location.href).href;
-}
-function resolveLoadedSkinTexture(scene, requestedId) {
-  if (scene && scene.textures && scene.textures.exists(requestedId)) return requestedId;
-  if (scene && scene.textures && scene.textures.exists('skin_default')) return 'skin_default';
-  return '__player_fallback';
-}
 function setActiveSkin(id) {
   localStorage.setItem('activeSkin', id);
   if (window.currentGameScene && window.currentGameScene.player && window.currentGameScene.player.active) {
-    const nextTexture = resolveLoadedSkinTexture(window.currentGameScene, id);
-    window.currentGameScene.player.setTexture(nextTexture);
+    window.currentGameScene.player.setTexture(id);
   }
 }
 function hasSkin(id) { return id==='skin_default' || State.hasItem(id); }
@@ -730,14 +777,84 @@ window.addEventListener('unhandledrejection', (e) => {
 });
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', setupDebugUI, { once: true });
+  document.addEventListener('DOMContentLoaded', () => {
+    setupDebugUI();
+    setupSkinPreviewModal();
+  }, { once: true });
 } else {
   setupDebugUI();
+  setupSkinPreviewModal();
 }
 
 // ========================================================
 //  UI 画面管理
 // ========================================================
+// スキンプレビューモーダル
+function closeSkinPreviewModal() {
+  const modal = document.getElementById('skin-preview-modal');
+  if (modal) modal.classList.remove('active');
+  window.selectedSkinPreviewId = null;
+}
+
+function openSkinPreviewModal(skin) {
+  const modal = document.getElementById('skin-preview-modal');
+  const large = document.getElementById('skin-preview-large');
+  const nameEl = document.getElementById('skin-preview-name');
+  const rarityEl = document.getElementById('skin-preview-rarity');
+  const descEl = document.getElementById('skin-preview-desc');
+  const applyBtn = document.getElementById('skin-preview-apply');
+  if (!modal || !large || !nameEl || !rarityEl || !descEl || !applyBtn || !skin) return;
+
+  const rarityLabel = {common:'COMMON', rare:'RARE', epic:'EPIC', legendary:'★LEGEND'}[skin.rarity] || skin.rarity.toUpperCase();
+  const rarityColor = RARITY_COLORS[skin.rarity] || '#aaa';
+  const activeSkinId = localStorage.getItem('activeSkin') || 'skin_default';
+  window.selectedSkinPreviewId = skin.id;
+
+  large.innerHTML = '';
+  const img = document.createElement('img');
+  img.src = `./assets/ships/${skin.id}.png`;
+  img.alt = skin.name;
+  img.onerror = () => {
+    img.remove();
+    const fallback = document.createElement('div');
+    fallback.className = 'skin-preview-large-fallback';
+    fallback.textContent = skin.icon;
+    large.appendChild(fallback);
+  };
+  large.appendChild(img);
+
+  nameEl.textContent = skin.name;
+  rarityEl.textContent = rarityLabel;
+  rarityEl.style.color = rarityColor;
+  descEl.textContent = skin.desc;
+  applyBtn.textContent = skin.id === activeSkinId ? '使用中' : 'このスキンにする';
+  applyBtn.disabled = skin.id === activeSkinId;
+  modal.classList.add('active');
+}
+
+function setupSkinPreviewModal() {
+  const modal = document.getElementById('skin-preview-modal');
+  const closeBtn = document.getElementById('skin-preview-close');
+  const cancelBtn = document.getElementById('skin-preview-cancel');
+  const applyBtn = document.getElementById('skin-preview-apply');
+  if (!modal || !closeBtn || !cancelBtn || !applyBtn) return;
+
+  closeBtn.addEventListener('click', closeSkinPreviewModal);
+  cancelBtn.addEventListener('click', closeSkinPreviewModal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeSkinPreviewModal();
+  });
+  applyBtn.addEventListener('click', () => {
+    const id = window.selectedSkinPreviewId;
+    if (!id) return;
+    const skin = SKIN_DEFS.find(s => s.id === id);
+    setActiveSkin(id);
+    if (skin) toast(`スキン「${skin.name}」に変更しました`);
+    closeSkinPreviewModal();
+    renderSkin();
+  });
+}
+
 // 名前入力モーダル
 function showNameInputModal(score, callback) {
   const modal = document.getElementById('name-modal');
@@ -901,7 +1018,7 @@ function renderSkin() {
       `;
       const preview = card.querySelector('.skin-preview');
       const img = document.createElement('img');
-      img.src = getSkinImageUrl(skin.id);
+      img.src = `./assets/ships/${skin.id}.png`;
       img.alt = skin.name;
       img.width = 40;
       img.height = 56;
@@ -914,15 +1031,14 @@ function renderSkin() {
         preview.appendChild(fallback);
       };
       preview.appendChild(img);
-      if (!isActive) {
-        const btn = card.querySelector('[data-skinid]');
-        if (btn) btn.addEventListener('click', (e)=>{
-          e.stopPropagation();
-          setActiveSkin(skin.id);
-          toast(`スキン「${skin.name}」に変更しました`);
-          renderSkin();
-        });
-      }
+      card.addEventListener('click', () => {
+        openSkinPreviewModal(skin);
+      });
+      const btn = card.querySelector('[data-skinid]');
+      if (btn) btn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        openSkinPreviewModal(skin);
+      });
     } else {
       card.innerHTML = `
         <div class="skin-locked-icon">❓</div>
@@ -945,13 +1061,6 @@ const POWER_DEFS = {
 
 // ===== テクスチャ生成 =====
 function makeTextures(scene) {
-  if (!scene.textures.exists('__player_fallback')) {
-    const g = scene.make.graphics({ add:false });
-    g.fillStyle(0x666666); g.fillTriangle(20,0,0,56,40,56);
-    g.fillStyle(0xffffff,0.95); g.fillEllipse(20,22,10,14);
-    g.fillStyle(0xffaa00); g.fillTriangle(14,44,20,56,26,44);
-    g.generateTexture('__player_fallback',40,56); g.destroy();
-  }
   // 敵A 雑魚（小型赤）
   if (!scene.textures.exists('enemy_a')) {
     const g = scene.make.graphics({ add:false });
@@ -1082,13 +1191,12 @@ class GameScene extends Phaser.Scene {
   constructor() { super('Game'); }
 
   preload() {
-    this.load.on('loaderror', (file) => {
-      window.debugLog && window.debugLog('[LOADERROR]', file && file.key, file && file.src);
-    });
     SKIN_DEFS.forEach((skin) => {
       const key = skin.id;
-      const url = getSkinImageUrl(key);
-      this.load.image(key, url);
+      const url = `./assets/ships/${key}.png`;
+      if (!this.textures.exists(key)) {
+        this.load.image(key, url);
+      }
     });
   }
 
@@ -1118,7 +1226,7 @@ class GameScene extends Phaser.Scene {
 
     // 自機
     const activeSkinId = getActiveSkin().id;
-    const playerTexture = resolveLoadedSkinTexture(this, activeSkinId);
+    const playerTexture = this.textures.exists(activeSkinId) ? activeSkinId : 'skin_default';
     this.player = this.physics.add.sprite(GW/2,GH-100,playerTexture);
     this.player.setCollideWorldBounds(true).setDepth(10);
 
@@ -2232,7 +2340,6 @@ if (window.firebaseRanking && window.firebaseRanking.isRankIn) {
 // ========================================================
 const phaserGame = new Phaser.Game({
   type: Phaser.AUTO,
-  pixelArt: true,
   width:GW, height:GH,
   backgroundColor:'#04040f',
   scale:{
