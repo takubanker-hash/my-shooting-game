@@ -265,7 +265,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; touch-act
 }
 #toast.show { opacity:1; }
 </style>
-<script src="./index_files/phaser.min.js.ダウンロード"></script></head>
+</head>
 <body>
 <div id="game-container"><canvas width="400" height="700" style="width: 418.286px; height: 732px;"></canvas></div>
 
@@ -620,10 +620,19 @@ function getActiveSkin() {
   const id = localStorage.getItem('activeSkin') || 'skin_default';
   return SKIN_DEFS.find(s=>s.id===id) || SKIN_DEFS[0];
 }
+function getSkinImageUrl(id) {
+  return new URL(`./assets/ships/${id}.png`, window.location.href).href;
+}
+function resolveLoadedSkinTexture(scene, requestedId) {
+  if (scene && scene.textures && scene.textures.exists(requestedId)) return requestedId;
+  if (scene && scene.textures && scene.textures.exists('skin_default')) return 'skin_default';
+  return '__player_fallback';
+}
 function setActiveSkin(id) {
   localStorage.setItem('activeSkin', id);
   if (window.currentGameScene && window.currentGameScene.player && window.currentGameScene.player.active) {
-    window.currentGameScene.player.setTexture(id);
+    const nextTexture = resolveLoadedSkinTexture(window.currentGameScene, id);
+    window.currentGameScene.player.setTexture(nextTexture);
   }
 }
 function hasSkin(id) { return id==='skin_default' || State.hasItem(id); }
@@ -892,7 +901,7 @@ function renderSkin() {
       `;
       const preview = card.querySelector('.skin-preview');
       const img = document.createElement('img');
-      img.src = `./assets/ships/${skin.id}.png`;
+      img.src = getSkinImageUrl(skin.id);
       img.alt = skin.name;
       img.width = 40;
       img.height = 56;
@@ -936,6 +945,13 @@ const POWER_DEFS = {
 
 // ===== テクスチャ生成 =====
 function makeTextures(scene) {
+  if (!scene.textures.exists('__player_fallback')) {
+    const g = scene.make.graphics({ add:false });
+    g.fillStyle(0x666666); g.fillTriangle(20,0,0,56,40,56);
+    g.fillStyle(0xffffff,0.95); g.fillEllipse(20,22,10,14);
+    g.fillStyle(0xffaa00); g.fillTriangle(14,44,20,56,26,44);
+    g.generateTexture('__player_fallback',40,56); g.destroy();
+  }
   // 敵A 雑魚（小型赤）
   if (!scene.textures.exists('enemy_a')) {
     const g = scene.make.graphics({ add:false });
@@ -1066,12 +1082,13 @@ class GameScene extends Phaser.Scene {
   constructor() { super('Game'); }
 
   preload() {
+    this.load.on('loaderror', (file) => {
+      window.debugLog && window.debugLog('[LOADERROR]', file && file.key, file && file.src);
+    });
     SKIN_DEFS.forEach((skin) => {
       const key = skin.id;
-      const url = `./assets/ships/${key}.png`;
-      if (!this.textures.exists(key)) {
-        this.load.image(key, url);
-      }
+      const url = getSkinImageUrl(key);
+      this.load.image(key, url);
     });
   }
 
@@ -1101,7 +1118,7 @@ class GameScene extends Phaser.Scene {
 
     // 自機
     const activeSkinId = getActiveSkin().id;
-    const playerTexture = this.textures.exists(activeSkinId) ? activeSkinId : 'skin_default';
+    const playerTexture = resolveLoadedSkinTexture(this, activeSkinId);
     this.player = this.physics.add.sprite(GW/2,GH-100,playerTexture);
     this.player.setCollideWorldBounds(true).setDepth(10);
 
@@ -2215,6 +2232,7 @@ if (window.firebaseRanking && window.firebaseRanking.isRankIn) {
 // ========================================================
 const phaserGame = new Phaser.Game({
   type: Phaser.AUTO,
+  pixelArt: true,
   width:GW, height:GH,
   backgroundColor:'#04040f',
   scale:{
